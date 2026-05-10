@@ -1,0 +1,10 @@
+#---> Test QUACK
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+QUACK STRING "test 1"
+QUACK ENTER
+QUACK DELAY 2000
+QUACK STRING "test 2"
+QUACK ENTER
+QUACK DELAY 2000
+QUACK STRING "working"
+QUACK ENTER

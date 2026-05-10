@@ -1,0 +1,3 @@
+This is a simple payload that removes handshakes containing a partial MAC address string or the entire MAC address, automatically converting to upper case to match the /root/loot/handshakes file schema.
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+It prompts the user before deletion to confirm if the user actually wants to delete them

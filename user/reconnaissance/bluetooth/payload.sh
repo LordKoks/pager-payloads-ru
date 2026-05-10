@@ -1,0 +1,107 @@
+#!/bin/bash
+. /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
+# Title: Full Bluetooth Scan
+# Author: Hackazillarex , Log Viewer scripted by Brandon Starkweather
+# Description: One-shot full scan of Classic and BLE devices on Pineapple Pager
+# Version: 1.4
+
+# === CONFIG ===
+LOOT_DIR="/root/loot/bluetooth"
+SCAN_DURATION=90       # 1.5 minutes
+DATE_FMT="+%Y-%m-%d_%H-%M-%S"
+HOSTNAME="$(hostname)"
+LOG_VIEWER="/root/payloads/user/general/log_viewer/payload.sh"
+
+mkdir -p "$LOOT_DIR"
+
+# --- Sanity checks ---
+for cmd in hciconfig hcitool bluetoothctl; do
+    command -v "$cmd" >/dev/null 2>&1 || { LOG red "Missing $cmd"; exit 1; }
+done
+hciconfig | grep -q hci0 || { LOG red "No hci0 device found"; exit 1; }
+
+LOG blue "Bluetooth Scan is starting" 
+
+TS="$(date "$DATE_FMT")"
+OUT="$LOOT_DIR/bt_scan_$TS.txt"
+
+LOG yellow "Scanning for 90 seconds"
+
+{
+    echo "=== Bluetooth Pager Full Scan ==="
+    echo "Host: $HOSTNAME"
+    echo "Date: $(date)"
+    echo
+
+    # --- Classic Bluetooth ---
+    echo "--- КЛАССИЧЕСКИЕ BLUETOOTH-УСТРОЙСТВА ---"
+    CLASSIC=$(hcitool scan 2>/dev/null | tail -n +2)
+    if [ -z "$CLASSIC" ]; then
+        echo "Классические Bluetooth-устройства не найдены."
+    else
+        echo "$CLASSIC"
+    fi
+
+    echo
+    
+LOG green "------------------------------"
+    
+LOG blue "Classic Bluetooth Scan completed!" 
+
+LOG yellow "Now scanning BLE Devices"
+
+LOG green "------------------------------"
+    
+    # --- BLE-УСТРОЙСТВА ---
+    echo "--- BLE-УСТРОЙСТВА ---"
+    echo "Scanning for $SCAN_DURATION seconds..."
+    
+
+    TMP_BLE="/tmp/bt_ble_scan.log"
+    >"$TMP_BLE"
+
+    bluetoothctl scan on >/dev/null 2>&1 &
+    SCAN_PID=$!
+
+    START=$(date +%s)
+    while [ $(( $(date +%s) - START )) -lt "$SCAN_DURATION" ]; do
+        bluetoothctl devices 2>/dev/null >> "$TMP_BLE"
+        sleep 5
+    done
+
+LOG yellow "BLE Device scan is almost finished"
+
+LOG green "------------------------------"
+
+    bluetoothctl scan off >/dev/null 2>&1
+    kill "$SCAN_PID" >/dev/null 2>&1
+
+    if [ -s "$TMP_BLE" ]; then
+        awk '!seen[$0]++' "$TMP_BLE"
+    else
+        echo "BLE-устройства не найдены."
+    fi
+
+    rm -f "$TMP_BLE"
+
+} > "$OUT"
+
+LOG blue "Scanning is coming to an end and Log Viewer will start shortly"
+
+# --- Cleanup empty logs ---
+if ! grep -q "Device" "$OUT"; then
+    rm -f "$OUT"
+    LOG yellow "Bluetooth-устройства не найдены"
+else
+    LOG green "Scan complete — results saved"
+fi
+
+# --- Launch Log Viewer (Pager UI safe) ---
+if [ -f "$LOG_VIEWER" ]; then
+    LOG blue "Opening Log Viewer..."
+    source "$LOG_VIEWER"
+else
+    LOG red "Log Viewer не найден at $LOG_VIEWER"
+fi
+
+exit 0
