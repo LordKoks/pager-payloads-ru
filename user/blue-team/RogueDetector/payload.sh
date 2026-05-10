@@ -9,19 +9,19 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "ROGUE AP DETECTOR
+PROMPT "ДЕТЕКТОР ROGUE AP
 
-Scans for unauthorized
-access points:
+Открытие неавторизованных
+точек доступа:
 
-- Evil twin detection
-- Duplicate SSID check
-- Open AP honeypots
-- Unknown BSSID alert
+- Обнаружение evil twin
+- Проверка дубликатов SSID
+- Открытые AP honeypot
+- Ономат BSSID
 
-Scan: 45 seconds
+Откор: 45 секунд
 
-Press OK to hunt."
+Нажмите OK для охоты."
 
 OUTDIR="/mmc/nullsec/blue-team/rogue-detector"
 mkdir -p "$OUTDIR"
@@ -40,9 +40,9 @@ timeout 45 airodump-ng $IFACE -w /tmp/rogue --output-format csv 2>/dev/null
 SPINNER_STOP
 
 CSV="/tmp/rogue-01.csv"
-[ ! -f "$CSV" ] && { ERROR_DIALOG "No scan data!"; exit 1; }
+[ ! -f "$CSV" ] && { ERROR_DIALOG "Нет данных сканирования!"; exit 1; }
 
-SPINNER_START "Analyzing for rogues..."
+SPINNER_START "Анализ данных на rogue..."
 
 grep -E "^([0-9A-Fa-f]{2}:){5}" "$CSV" | \
     awk -F',' '{gsub(/^ +| +$/,"",$1); gsub(/^ +| +$/,"",$14); print $1","$14}' > /tmp/rogue_all.csv

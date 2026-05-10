@@ -9,33 +9,33 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "COMPLIANCE AUDITOR
+PROMPT "Одитор КОМПЛАЙЕНСИ
 
-WiFi security policy audit.
+Одит политики WiFi безопасности.
 
-Checks for:
-- WEP (broken encryption)
-- Open networks (no auth)
-- WPA3 adoption
-- Hidden SSIDs
+Проверяет:
+- WEP (неработающее шифрование)
+- Открытые сети (без аутентификации)
+- Трибуннеми WPA3
+- Скрытые SSID
 
-Scan: 30 seconds
+Откор: 30 секунд
 
-Press OK to audit."
+Нажмите OK для аудита."
 
 OUTDIR="/mmc/nullsec/blue-team/compliance"
 mkdir -p "$OUTDIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REPORT="$OUTDIR/audit_${TIMESTAMP}.txt"
 
-SPINNER_START "Scanning all channels (30s)..."
+SPINNER_START "Рафарирование всех каналов (30с)..."
 timeout 30 airodump-ng $IFACE -w /tmp/compliance --output-format csv 2>/dev/null
 SPINNER_STOP
 
 CSV="/tmp/compliance-01.csv"
-[ ! -f "$CSV" ] && { ERROR_DIALOG "No scan data captured!"; exit 1; }
+[ ! -f "$CSV" ] && { ERROR_DIALOG "На сканированных данных!"; exit 1; }
 
-SPINNER_START "Analyzing compliance..."
+SPINNER_START "Анализ соответствия..."
 
 TOTAL=$(grep -cE "^([0-9A-Fa-f]{2}:){5}" "$CSV" 2>/dev/null || echo 0)
 WPA3=$(grep -ci "WPA3" "$CSV" 2>/dev/null || echo 0)
@@ -52,22 +52,22 @@ FAILS=$((WEP + OPEN))
     echo ""
     echo "Date: $(date)"
     echo ""
-    echo "── Summary ─────────────────────────────"
-    echo "Total Сетьs:    $TOTAL"
-    echo "WPA3 (Strongest):  $WPA3"
-    echo "WPA2 (Standard):   $WPA2"
-    echo "WEP (Broken):      $WEP"
-    echo "Open (No Auth):    $OPEN"
-    echo "Hidden SSIDs:      $HIDDEN"
+    echo "── Отсути ───────────────"
+    echo "Всего сетей:      $TOTAL"
+    echo "WPA3 (сильнейш):   $WPA3"
+    echo "WPA2 (стандарт):   $WPA2"
+    echo "WEP (неработающ):   $WEP"
+    echo "Открытые (нет аут): $OPEN"
+    echo "Скрытые SSID:      $HIDDEN"
     echo ""
-    echo "── Findings ────────────────────────────"
-    [ "$WEP" -gt 0 ] && echo "⛔ FAIL: $WEP WEP network(s)"
-    [ "$OPEN" -gt 0 ] && echo "⛔ FAIL: $OPEN open network(s)"
-    [ "$WPA3" -eq 0 ] && [ "$TOTAL" -gt 0 ] && echo "⚠️  WARN: No WPA3 adoption"
-    [ "$HIDDEN" -gt 0 ] && echo "ℹ️  INFO: $HIDDEN hidden network(s)"
-    [ "$FAILS" -eq 0 ] && echo "✅ PASS: No critical issues"
+    echo "── Находки ───────────────"
+    [ "$WEP" -gt 0 ] && echo "⚠ НОПАВКА: $WEP WEP сетей"
+    [ "$OPEN" -gt 0 ] && echo "⚠ НОПАВКА: $OPEN открытых сетей"
+    [ "$WPA3" -eq 0 ] && [ "$TOTAL" -gt 0 ] && echo "⚠ ПРЕДОПОВЕЖДЕНИЕ: Нет WPA3"
+    [ "$HIDDEN" -gt 0 ] && echo "ℹ️  ИНФО: $HIDDEN скрытых сетей"
+    [ "$FAILS" -eq 0 ] && echo "✅ ОК: Нет критических ошибок"
     echo ""
-    echo "── Сеть Inventory ─────────────────"
+    echo "── Опись сетей ──────────"
     grep -E "^([0-9A-Fa-f]{2}:){5}" "$CSV" | sort -t',' -k9 -n -r | \
         awk -F',' '{gsub(/^ +| +$/,"",$1); gsub(/^ +| +$/,"",$4); gsub(/^ +| +$/,"",$6); gsub(/^ +| +$/,"",$9); gsub(/^ +| +$/,"",$14); printf "%-18s CH:%-3s PWR:%-5s %-12s %s\n", $1, $4, $9, $6, $14}'
 } > "$REPORT"

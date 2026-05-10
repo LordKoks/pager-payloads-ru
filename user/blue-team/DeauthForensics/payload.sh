@@ -12,28 +12,26 @@ nullsec_require_iface || exit 1
 LOOT_DIR="/mmc/nullsec/deauthforensics"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "DEAUTH FORENSICS
+PROMPT "ФОРЕНЗИКА DEAUTH
 
-WiFi deauth attack
-forensics analyzer.
+Аналитор deauth-атак WiFi.
 
-Captures deauth/disassoc
-frames and fingerprints
-the attacker's tool:
+Перехватывает кадры deauth/disassoc
+и ОПРЕДЕЛЯЕТ тоол атакующего:
 
 - aireplay-ng
 - mdk3 / mdk4
-- Pineapple modules
+- Pineapple модули
 - bully / reaver
-- Custom scripts
+- Обычные скрипты
 
-Also detects:
-- Targeted vs broadcast
-- Attack intensity (pps)
-- Duration & patterns
-- Attacker MAC/OUI
+Также ОБНАРУЖИВАЕТ:
+- Целевые vs broadcast
+- Мощность атаки (pps)
+- Продолжительность & паттерны
+- МАЦ атакующего/OUI
 
-Press OK to configure."
+Нажмите OK для настройки."
 
 # Check for monitor mode capable interface
 IFACE=""

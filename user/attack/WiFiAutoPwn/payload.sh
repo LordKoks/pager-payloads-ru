@@ -13,11 +13,11 @@ mkdir -p "$LOOT_DIR"
 # ==================== ШАГ 1: Выбор сети ====================
 PROMPT "WiFi Auto PWN
 
-Выберите целевую сеть из списка
-найденных в разделе Recon.
+Выберите целевую сеть
+из результатов Recon.
 
-Убедитесь, что Recon запущен
-и видит целевую сеть."
+Убедитесь, что Recon
+запущен и видит цель."
 
 # Получаем список сетей из Recon
 RECON_FILE="/tmp/recon_scan.csv"
@@ -27,7 +27,7 @@ cat /dev/null > "$RECON_FILE"
 curl -s http://localhost:1471/api/recon/scan > "$RECON_FILE" 2>/dev/null
 
 if [ ! -s "$RECON_FILE" ]; then
-    ERROR_DIALOG "Recon scan пуст. Запустите Recon и повторите попытку."
+    ERROR_DIALOG "Результаты Recon пусты.\nЗапустите Recon и повторите."
     exit 1
 fi
 
@@ -38,7 +38,7 @@ if [ -z "$TARGETS" ]; then
     exit 1
 fi
 
-# Позволяем выбрать цель
+# Выбор цели
 BSSID=$(echo "$TARGETS" | awk -F',' '{print $1}' | head -1)
 CHANNEL=$(echo "$TARGETS" | awk -F',' '{print $3}' | head -1)
 ESSID=$(echo "$TARGETS" | awk -F',' '{print $2}' | head -1)
@@ -51,7 +51,7 @@ ESSID: $ESSID
 
 Начинаем атаку?"
 
-# ==================== ШАГ 2: Выбор клиента для деаутентификации ====================
+# ==================== ШАГ 2: Выбор клиента ====================
 CLIENTS_FILE="/tmp/recon_clients.csv"
 curl -s "http://localhost:1471/api/recon/ap/$BSSID/clients" > "$CLIENTS_FILE" 2>/dev/null
 

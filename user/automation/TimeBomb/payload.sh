@@ -31,26 +31,26 @@ show_help() {
     echo "   NullSec TimeBomb v1.0"
     echo "=========================================="
     echo ""
-    echo "Usage: $0 <action> [delay] [payload]"
+    echo "Использование: $0 <действие> [задержка] [сценарий]"
     echo ""
-    echo "Actions:"
-    echo "  set <delay> <payload>  - Schedule a payload"
-    echo "  list                   - Показать запланированные задания"
-    echo "  clear                  - Очистить все запланированные задания"
-    echo "  run                    - Выполнить задания сейчас"
+    echo "Действия:"
+    echo "  set <задержка> <сценарий>  - Запланировать сценарий"
+    echo "  list                       - Показать запланированные задания"
+    echo "  clear                      - Очистить все запланированные задания"
+    echo "  run                        - Выполнить задания сейчас"
     echo ""
     echo "Форматы задержки:"
     echo "  60       - Секунд от текущего момента"
     echo "  5m       - Минут от текущего момента"
     echo "  2h       - Часов от текущего момента"
-    echo "  14:30    - Конкретное время (24часовой формат)"
+    echo "  14:30    - Конкретное время (24-часовой формат)"
     echo ""
-    echo "Examples:"
-    echo "  $0 set 300 DeauthStorm    - Run DeauthStorm in 5 minutes"
-    echo "  $0 set 2h MassDeauth      - Run MassDeauth in 2 hours"
-    echo "  $0 set 23:00 StealthRecon - Run StealthRecon at 11 PM"
-    echo "  $0 list                   - Show all scheduled"
-    echo "  $0 clear                  - Remove all scheduled"
+    echo "Примеры:"
+    echo "  $0 set 300 DeauthStorm    - Запустить DeauthStorm через 5 минут"
+    echo "  $0 set 2h MassDeauth      - Запустить MassDeauth через 2 часа"
+    echo "  $0 set 23:00 StealthRecon - Запустить StealthRecon в 23:00"
+    echo "  $0 list                   - Показать все запланированные"
+    echo "  $0 clear                  - Удалить все запланированные"
     echo ""
     echo "Доступные сценарии:"
     ls /root/payloads/user/nullsec/ 2>/dev/null | head -20
@@ -106,16 +106,16 @@ schedule_payload() {
     PAYLOAD="$2"
     
     if [ -z "$PAYLOAD" ]; then
-        log "[!] No payload specified"
+        log "[!] Сценарий не указан"
         show_help
         exit 1
     fi
     
-    # Check payload exists
+    # Проверка наличия сценария
     PAYLOAD_PATH="/root/payloads/user/nullsec/$PAYLOAD/payload.sh"
     if [ ! -f "$PAYLOAD_PATH" ]; then
-        log "[!] Payload не найден: $PAYLOAD"
-        log "[*] Looking for: $PAYLOAD_PATH"
+        log "[!] Сценарий не найден: $PAYLOAD"
+        log "[*] Ищу в: $PAYLOAD_PATH"
         exit 1
     fi
     
@@ -129,11 +129,11 @@ schedule_payload() {
     # Save to schedule
     echo "$JOB_ID|$EXEC_TIME|$PAYLOAD|$PAYLOAD_PATH|pending" >> "$SCHEDULE_FILE"
     
-    log "[+] TimeBomb scheduled!"
-    log "    Job ID: $JOB_ID"
-    log "    Payload: $PAYLOAD"
-    log "    Execute at: $EXEC_TIME_HUMAN"
-    log "    Delay: ${DELAY_SECS} seconds"
+    log "[+] TimeBomb запланирована!"
+    log "    ID задания: $JOB_ID"
+    log "    Сценарий: $PAYLOAD"
+    log "    Выполнить в: $EXEC_TIME_HUMAN"
+    log "    Задержка: ${DELAY_SECS} секунд"
     
     # Start background watcher if not running
     if ! pgrep -f "timebomb_watcher" >/dev/null 2>&1; then

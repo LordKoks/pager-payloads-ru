@@ -8,36 +8,36 @@
 LOOT_DIR="/mmc/nullsec/usbguard"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "ROGUE USB GUARD
+PROMPT "ЖЕНДЕРНАО ROGUE USB
 
-Monitors USB ports for
-unauthorized devices.
+Наблюдает порты USB для 
+неавторизованных устройств.
 
-Protects YOUR Pineapple
-from USB-based attacks:
+Защищает ВАШ Pineapple
+от USB-атак:
 - BadUSB / Rubber Ducky
-- Unknown flash drives
-- Rogue network adapters
-- Keyloggers
-- USB implants
+- Неизвестные флешки
+- Rogue-адаптеры
+- Кейлоггеры
+- USB-импланты
 
-Alerts on insertion of
-any unwhitelisted device.
+Овещают со внедрением
+любого неутвержденного устройства.
 
-Press OK to configure."
+Нажмите OK для настройки."
 
 TIMESTAMP=$(date +%Y%m%d_%H%M)
 ALERT_LOG="$LOOT_DIR/usb_alerts_$TIMESTAMP.log"
 WHITELIST="$LOOT_DIR/whitelist.conf"
 DEVICE_LOG="$LOOT_DIR/device_history.log"
 
-echo "[$(date)] RogueUSBGuard started" > "$ALERT_LOG"
+echo "[жендерная $(date)] Начала работа RogueUSBGuard" > "$ALERT_LOG"
 
-# Build initial whitelist from currently connected devices
+# Составление белого списка текущих устройств
 build_whitelist() {
-    echo "# NullSec RogueUSBGuard Whitelist" > "$WHITELIST.tmp"
-    echo "# Generated: $(date)" >> "$WHITELIST.tmp"
-    echo "# Format: VID:PID|Manufacturer|Product" >> "$WHITELIST.tmp"
+    echo "# NullSec RogueUSBGuard Одобренные устройства" > "$WHITELIST.tmp"
+    echo "# Генерировано: $(date)" >> "$WHITELIST.tmp"
+    echo "# Формат: VID:PID|Производитель|Тип" >> "$WHITELIST.tmp"
     echo "#" >> "$WHITELIST.tmp"
 
     for dev in /sys/bus/usb/devices/[0-9]*; do
@@ -51,35 +51,35 @@ build_whitelist() {
     done
 }
 
-# Check if device is whitelisted
+# Проверка в белом списке
 is_whitelisted() {
     local vid="$1" pid="$2"
     grep -q "^${vid}:${pid}|" "$WHITELIST" 2>/dev/null
     return $?
 }
 
-# Get device class description
+# Название класса устройства
 get_device_class() {
     local class="$1"
     case "$class" in
-        "00") echo "Composite" ;;
-        "01") echo "Audio" ;;
-        "02") echo "CDC/Modem" ;;
+        "00") echo "Композит" ;;
+        "01") echo "Аудио" ;;
+        "02") echo "CDC/Модем" ;;
         "03") echo "HID (клавиатура/мышь)" ;;
-        "05") echo "Physical" ;;
-        "06") echo "Image" ;;
-        "07") echo "Printer" ;;
-        "08") echo "Mass Хранилище" ;;
-        "09") echo "Hub" ;;
-        "0a") echo "CDC-Data" ;;
-        "0b") echo "Smart Card" ;;
-        "0e") echo "Video" ;;
-        "0f") echo "Health" ;;
+        "05") echo "Физический" ;;
+        "06") echo "Контент" ;;
+        "07") echo "Принтер" ;;
+        "08") echo "Носитель" ;;
+        "09") echo "Пиц" ;;
+        "0a") echo "CDC-Данные" ;;
+        "0b") echo "Смарт-Карта" ;;
+        "0e") echo "Видео" ;;
+        "0f") echo "Медицина" ;;
         "e0") echo "Беспроводное (BT/WiFi)" ;;
-        "ef") echo "Разное" ;;
-        "fe") echo "Специфичное для приложения" ;;
-        "ff") echo "Специфичное для производителя" ;;
-        *)    echo "Unknown ($class)" ;;
+        "ef") echo "Мисц" ;;
+        "fe") echo "Внедренные" ;;
+        "ff") echo "Проприетарные" ;;
+        *)    echo "Неизвестные ($class)" ;;
     esac
 }
 
@@ -144,18 +144,16 @@ snapshot_usb() {
 # Choose mode
 PROMPT "ВЫБЕРИТЕ РЕЖИМ:
 
-1. Learn & Guard
-   (whitelist current USB
-   devices, alert on new)
+1. Учить & Оставыль
+   (добавить тек устр-ва)
 
-2. Paranoid Mode
-   (alert on ANY USB event)
+2. ПАРАНОЙДНЫЙ
+   (овещать у USB событие)
 
-3. Audit Only
-   (log all USB devices,
-   no alerts)
+3. ТОЛЬКО АУДИТ
+   (конк все USB, без на)
 
-Выберите следующий режим."
+Выберите режим (1-3)."
 
 MODE=$(NUMBER_PICKER "Mode (1-3):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) MODE=1 ;; esac

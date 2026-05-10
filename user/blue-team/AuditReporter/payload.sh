@@ -9,22 +9,22 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "AUDIT REPORTER
+PROMPT "ОТЧЕТ ОДИТОРА
 
-WiFi Security Assessment
-Report Generator.
+Безопасность WiFi
+ОЦЕНКА ОПОР
+ГЕНЕРАТОР
+Откор окружения и
+сохраняет подробный отчёт:
 
-Scans environment and
-creates a detailed report:
+- Оценка риска
+- Нарушение безопасности
+- Находки и рекомендации
+- Полные снапсноты сети
 
-- Risk scoring
-- Security breakdown
-- Findings & recommendations
-- Full network inventory
+Откор: 30 секунд
 
-Scan: 30 seconds
-
-Press OK to audit."
+Нажмите OK аудит."
 
 OUTDIR="/mmc/nullsec/blue-team/audit-reporter"
 mkdir -p "$OUTDIR"
@@ -36,9 +36,9 @@ timeout 30 airodump-ng $IFACE -w /tmp/audit --output-format csv 2>/dev/null
 SPINNER_STOP
 
 CSV="/tmp/audit-01.csv"
-[ ! -f "$CSV" ] && { ERROR_DIALOG "No scan data!"; exit 1; }
+[ ! -f "$CSV" ] && { ERROR_DIALOG "Нет данных сканирования!"; exit 1; }
 
-SPINNER_START "Generating audit report..."
+SPINNER_START "Оставление отчета аудита..."
 
 TOTAL=$(grep -cE "^([0-9A-Fa-f]{2}:){5}" "$CSV" 2>/dev/null || echo 0)
 WPA3=$(grep -ci "WPA3" "$CSV" 2>/dev/null || echo 0)
@@ -53,10 +53,10 @@ else
     RISK_PCT=0
 fi
 
-if [ "$RISK_PCT" -lt 10 ]; then RISK="LOW"
-elif [ "$RISK_PCT" -lt 30 ]; then RISK="MEDIUM"
-elif [ "$RISK_PCT" -lt 60 ]; then RISK="HIGH"
-else RISK="CRITICAL"
+if [ "$RISK_PCT" -lt 10 ]; then RISK="НИЗКА"
+elif [ "$RISK_PCT" -lt 30 ]; then RISK="СРЕДНяЯ"
+elif [ "$RISK_PCT" -lt 60 ]; then RISK="ВЫСОКА"
+else RISK="КОНТОЈНА"
 fi
 
 {

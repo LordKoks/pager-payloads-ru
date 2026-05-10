@@ -8,35 +8,35 @@
 LOOT_DIR="/mmc/nullsec/scheduled"
 mkdir -p "$LOOT_DIR"
 
-PROMPT "SCHEDULED SCAN
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Automated periodic WiFi
-scanning with logging.
+PROMPT "ПЛАНОВЫЕ НАТУРА ОТСКАНИРОВАНИЕ
+━━━━━━━━━━━━━━━━━━━━━━━
+Автоматическое покоренное WiFi
+сканирование с регистрированием.
 
-Perfect for site surveys
-and monitoring.
+Идеально для комнат уна и
+мониторинга.
 
-Press OK to configure."
+Нажмите OK для конфигурирования."
 
-INTERVAL=$(NUMBER_PICKER "Scan interval (min):" 15)
+INTERVAL=$(NUMBER_PICKER "Отстан откоренно (мин):" 15)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) INTERVAL=15 ;; esac
 [ $INTERVAL -lt 1 ] && INTERVAL=1
 
-TOTAL_SCANS=$(NUMBER_PICKER "Total scans (0=inf):" 10)
+TOTAL_SCANS=$(NUMBER_PICKER "Всего откоренно (0=inf):" 10)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) TOTAL_SCANS=10 ;; esac
 
-SCAN_DUR=$(NUMBER_PICKER "Scan duration (sec):" 15)
+SCAN_DUR=$(NUMBER_PICKER "Один откор цанть (сек):" 15)
 case $? in $DUCKYSCRIPT_CANCELLED|$DUCKYSCRIPT_REJECTED) SCAN_DUR=15 ;; esac
 [ $SCAN_DUR -lt 5 ] && SCAN_DUR=5
 [ $SCAN_DUR -gt 60 ] && SCAN_DUR=60
 
-resp=$(CONFIRMATION_DIALOG "SCHEDULE CONFIG:
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Interval: ${INTERVAL}min
-Scans: $([ $TOTAL_SCANS -eq 0 ] && echo Infinite || echo $TOTAL_SCANS)
-Длительность: ${SCAN_DUR}s each
+resp=$(CONFIRMATION_DIALOG "КОНФИГ ПЛАНА:
+━━━━━━━━━━━━━━━━━━━━━━━
+Отстан: ${INTERVAL}мин
+Откор: $([ $TOTAL_SCANS -eq 0 ] && echo БЕсконечно или echo $TOTAL_SCANS)
+По одному: ${SCAN_DUR}с
 
-START?")
+НАЧАТЬ?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 MONITOR_IF=""
@@ -51,7 +51,7 @@ echo "scan_num,timestamp,networks,clients" > "$MASTER_LOG"
 
 while true; do
     SCAN_NUM=$((SCAN_NUM + 1))
-    LOG "Scheduled scan #$SCAN_NUM"
+    LOG "Плановые натура #$SCAN_NUM"
     
     rm -f /tmp/sched_scan*
     timeout $SCAN_DUR airodump-ng "$MONITOR_IF" -w /tmp/sched_scan --output-format csv 2>/dev/null &
@@ -70,10 +70,10 @@ while true; do
     sleep $((INTERVAL * 60))
 done
 
-PROMPT "SCHEDULE COMPLETE
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Scans completed: $SCAN_NUM
-Журнал: $(basename $MASTER_LOG)
-━━━━━━━━━━━━━━━━━━━━━━━━━
-All results saved to:
+PROMPT "ПЛАН ЗАВЕРШЕН
+━━━━━━━━━━━━━━━━━━━━━━━
+Откор завершен: $SCAN_NUM
+Название дневника: $(basename $MASTER_LOG)
+━━━━━━━━━━━━━━━━━━━━━━━
+Все результаты сохранены в:
 $LOOT_DIR"

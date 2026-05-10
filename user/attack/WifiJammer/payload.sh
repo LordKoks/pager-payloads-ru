@@ -9,35 +9,36 @@
 . /root/payloads/library/nullsec-iface.sh 2>/dev/null || . "$(dirname "$0")/../../../lib/nullsec-iface.sh"
 nullsec_require_iface || exit 1
 
-PROMPT "WIFI JAMMER
+PROMPT "НАРУШИТЕЛЬ WiFi
 
-Disrupt WiFi on selected
-channels or full 2.4GHz.
+Подавите WiFi на
+выбранных каналах
+или всём 2.4ГГц.
 
-Multiple jam modes:
-- Deauth flood
-- Beacon flood
-- Noise injection
+Несколько режимов:
+- Поток деаутентификации
+- Наводнение beacon-кадров
+- Номные импульсы
 
-For testing only.
-Press OK to continue."
+Только для тестирования.
+Нажмите OK для продолжения."
 
 INTERFACE="$IFACE"
 
-PROMPT "JAM MODE:
+PROMPT "РЕЖИМ НАРУШЕНИЯ:
 
-1. Single Channel
-2. Channel Hop (1,6,11)
-3. Full Spectrum (all)
-4. Target Сеть Only
+1. Один канал
+2. Прыгание каналов (1,6,11)
+3. Полный спектр (все)
+4. Одна сеть
 
-Enter mode next."
+Введите режим."
 
 JAM_MODE=$(NUMBER_PICKER "Режим (1-4):" 1)
 
 case $JAM_MODE in
     1)
-        CHANNEL=$(NUMBER_PICKER "Channel (1-14):" 6)
+        CHANNEL=$(NUMBER_PICKER "Канал (1-14):" 6)
         CHANNELS="$CHANNEL"
         ;;
     2)
@@ -48,31 +49,31 @@ case $JAM_MODE in
         ;;
     4)
         # Need to scan first
-        TARGET_BSSID=$(MAC_PICKER "Target BSSID:")
+        TARGET_BSSID=$(MAC_PICKER "Целевые BSSID:")
         CHANNELS="scan"
         ;;
 esac
 
-PROMPT "JAM TYPE:
+PROMPT "ТИП ПОДАВЛЕНиЯ:
 
-1. Deauth Flood
-2. Beacon Spam
-3. Combined Attack
+1. Поток деаутентификации
+2. Наводнение beacon
+3. Комбинированная атака
 
-Enter type next."
+Выберите тип."
 
 JAM_TYPE=$(NUMBER_PICKER "Type (1-3):" 1)
-DURATION=$(NUMBER_PICKER "Duration (sec):" 60)
+DURATION=$(NUMBER_PICKER "Лонительность (сек):" 60)
 
-resp=$(CONFIRMATION_DIALOG "START JAMMING?
+resp=$(CONFIRMATION_DIALOG "НАЧАТЬ ПОДАвЛеНИЕ?
 
 Режим: $JAM_MODE
-Длительность: ${DURATION}s
+Нониторинг: ${DURATION}с
 
-This WILL disrupt
-nearby WiFi networks.
+Снижит экраны
+WiFi НАРОДНЫХ сетей.
 
-Confirm?")
+Подтвердить?")
 [ "$resp" != "$DUCKYSCRIPT_USER_CONFIRMED" ] && exit 0
 
 # Prepare
@@ -82,8 +83,8 @@ airmon-ng start $INTERFACE >/dev/null 2>&1
 MON_IF="${INTERFACE}mon"
 [ ! -d "/sys/class/net/$MON_IF" ] && MON_IF="$INTERFACE"
 
-LOG "Starting jammer..."
-SPINNER_START "Jamming WiFi..."
+LOG "Запуск заметилки..."
+SPINNER_START "Подавление WiFi..."
 
 # Jamming function
 jam_channel() {
@@ -149,12 +150,12 @@ killall mdk3 mdk4 aireplay-ng 2>/dev/null
 SPINNER_STOP
 airmon-ng stop $MON_IF 2>/dev/null
 
-PROMPT "JAMMING COMPLETE
+PROMPT "ПОДАВЛЕНИЕ ЗАВЕРШЕНО
 
-Длительность: ${DURATION}s
+Нониторинг: ${DURATION}с
 Режим: $JAM_MODE
-Type: $JAM_TYPE
+Тип: $JAM_TYPE
 
-WiFi disruption ended.
+Прерывание WiFi окончено.
 
-Press OK to exit."
+Нажмите OK для выхода."
